@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KernelSim: operating system simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fde8d0;--ink:#2b1a0d;--mute:#7a5a40;--card:#fff6ec;--line:#ebc79d;--c1:#2f5bd8;--c2:#e0a526;--c3:#1f8a8a;--c4:#9a3fb0;--c5:#d9534f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#24170d;--ink:#fbe9d4;--mute:#d1b497;--card:#2e1e12;--line:#4d3623}}
+:root[data-theme="dark"]{--bg:#24170d;--ink:#fbe9d4;--mute:#d1b497;--card:#2e1e12;--line:#4d3623}
+*{box-sizing:border-box}html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;line-height:1.1;margin:0}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header{padding:56px 0 24px}
+h1{font-size:clamp(44px,9vw,96px);font-weight:800;letter-spacing:-.03em}
+.lead{max-width:60ch;color:var(--mute);margin:16px 0 0;font-size:19px}
+.meta{color:var(--mute);font-size:15px;margin-top:12px}
+.demo{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin:28px 0 0}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+button,select{font:500 15px "IBM Plex Sans",sans-serif;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer}
+button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--c1);outline-offset:2px}
+.gantt{display:flex;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:repeating-linear-gradient(90deg,transparent 0 calc(var(--u) - 1px),var(--line) calc(var(--u) - 1px) var(--u))}
+.gantt div{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;transition:flex-grow .5s}
+.axis{display:flex;font-size:12px;color:var(--mute);margin-top:4px}
+.axis span{text-align:right}
+table{border-collapse:collapse;width:100%;font-size:15px}
+.scroll{overflow-x:auto}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-top:16px}
+.stats b{display:block;font:700 26px "Bricolage Grotesque",sans-serif}
+.stats small{color:var(--mute)}
+section{padding:56px 0 0}
+h2{font-size:clamp(28px,5vw,44px);margin-bottom:20px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px 40px}
+.grid h3{font-size:21px;margin-bottom:6px;border-left:6px solid var(--k,var(--c1));padding-left:12px}
+.grid p{margin:0;color:var(--mute)}
+.pg{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}
+.pg div{min-width:48px;border:1px solid var(--line);border-radius:8px;text-align:center;padding:6px 0 4px;font-weight:500}
+.pg div.f{background:var(--c5);color:#fff;border-color:var(--c5)}
+.pg div small{display:block;font-size:11px;opacity:.85}
+.pg div i{display:flex;flex-direction:column;gap:2px;font-style:normal;margin-top:4px;font-size:13px}
+.pg div i s{text-decoration:none;border-top:1px solid rgba(128,128,128,.3)}
+code{font:500 14px ui-monospace,Menlo,Consolas,monospace;background:var(--card);border:1px solid var(--line);padding:2px 6px;border-radius:5px}
+.links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.links a{color:var(--bg);background:var(--ink);padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:500}
+.links a.alt{background:transparent;color:var(--ink);border:1px solid var(--ink)}
+footer{padding:64px 0 40px;color:var(--mute);font-size:15px}
+.chart{width:100%;height:auto;display:block}
+.chart .t{fill:var(--mute);font:12px "IBM Plex Sans",sans-serif}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .bx{fill:var(--card);stroke:var(--ink);stroke-width:1.5}
+.chart .bn{fill:var(--ink);font:600 14px "IBM Plex Sans",sans-serif;text-anchor:middle}
+.chart .ar{stroke:var(--ink);stroke-width:1.5;fill:none}
+.lg{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--mute);margin-top:8px}
+.lg span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--k);margin-right:6px;vertical-align:-1px}
+input{font:500 15px ui-monospace,Menlo,Consolas,monospace;padding:8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);max-width:100%}
+input:focus-visible{outline:3px solid var(--c1);outline-offset:2px}
+h3.sub{margin:24px 0 8px;font-size:20px}
+.disk{display:grid;grid-template-columns:repeat(16,minmax(0,1fr));gap:4px;margin:12px 0}
+.disk div{aspect-ratio:1;border-radius:4px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff}
+.disk div.x{border:2px solid var(--ink)}
+input[type=range]{padding:0;border:0;accent-color:var(--c1);min-width:160px}
+output{font-weight:600;min-width:44px}
+.chip{display:inline-block;min-width:44px;text-align:center;padding:5px 10px;border-radius:8px;font-weight:600;font-size:14px}
+.lrc{border:1px solid var(--line);border-radius:10px;padding:12px;min-height:84px;background:var(--bg)}
+.lrc small{display:block;color:var(--mute);margin-bottom:6px}
+.lrc .big{font:700 30px "Bricolage Grotesque",sans-serif;line-height:1.2}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.pgf{width:70px;height:70px;border:2px solid var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 26px "Bricolage Grotesque",sans-serif;background:var(--card)}
+.logl{margin:2px 0;font-size:15px}
+[hidden]{display:none!important}
+nav.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+.navin{display:flex;gap:6px;overflow-x:auto;padding:10px 20px;max-width:1040px;margin:0 auto;white-space:nowrap;scrollbar-width:thin}
+.navin a{padding:6px 12px;border-radius:999px;color:var(--ink);text-decoration:none;font-weight:500;font-size:15px;border:1px solid transparent;flex:0 0 auto}
+.navin a:hover{border-color:var(--line)}
+.navin a[aria-current]{background:var(--ink);color:var(--bg)}
+#dxmon{white-space:pre-wrap;overflow-wrap:anywhere}
+.codeblock{margin:0;padding:16px;overflow-x:auto;background:var(--bg);border:1px solid var(--line);border-radius:10px;font:14px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre;max-width:100%}
+@media (max-width:480px){.disk{gap:2px}.disk div{font-size:10px;border-radius:3px}.lrc .big{font-size:24px}#lrt input{width:62px!important}#lrt th,#lrt td{padding:6px 4px}#pgi,#dq,#refs{flex:1 1 100%}}
+.gb{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 14px;min-width:92px;border:2px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);cursor:pointer}
+.gb:hover{border-color:var(--ink)}
+.gb.hint{border:3px dashed var(--c2)}
+.gb small{color:var(--mute)}
+.term{background:#14100b;color:#f3e3cf;border-radius:10px 10px 0 0;padding:12px;height:320px;overflow:auto;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
+.term .err{color:#ff9b8f}.term .cmd{color:#ffd37a}.term .dim{color:#b7a48c}
+.termin{display:flex;gap:8px;align-items:center;background:#14100b;color:#ffd37a;padding:8px 12px;border-radius:0 0 10px 10px;font:14px ui-monospace,Menlo,Consolas,monospace}
+.termin input{flex:1;min-width:0;background:transparent;border:0;color:#f3e3cf;padding:6px;font:14px ui-monospace,Menlo,Consolas,monospace;outline:0}
+.termin:focus-within{outline:3px solid var(--c1)}
+@media (prefers-reduced-motion:reduce){.gantt div{transition:none}}
+</style></head><body>
+<nav class="top" aria-label="Sections"><div class="navin"><a href="#runner">Live runner</a><a href="#timetravel">Time travel</a><a href="#sound">Sound</a><a href="#game">Challenge</a><a href="#pager">Pager game</a><a href="#lab">Crash lab</a><a href="#detective">Detective</a><a href="#shell">Shell</a><a href="#interleave">Interleavings</a><a href="#compare">Scheduling</a><a href="#modules">Overview</a><a href="#paging">Paging</a><a href="#pc">Concurrency</a><a href="#deadlock">Deadlock</a><a href="#files">Files</a><a href="#bench">Benchmarks</a><a href="#code" id="navcode" hidden>Code</a></div></nav>
+<div class="wrap">
+<header>
+<h1>KernelSim</h1>
+<p class="lead">A modular operating system simulator in C/C++ that runs the core of an OS in miniature: scheduling, virtual memory, synchronisation, IPC and a file system.</p>
+<div class="links" style="margin:20px 0 0"><a href="#runner">Try the live runner</a><a class="alt" href="#compare">See the comparisons</a></div>
+
+<div class="demo" aria-label="Live scheduling demo">
+<div class="bar"><button id="rnd">Randomise processes</button><button id="rst">Reset to default</button></div>
+<div class="bar" role="group" aria-label="Scheduling algorithm" id="algos"></div>
+<div id="gantt" class="gantt" role="img" aria-label="Gantt chart"></div>
+<div id="axis" class="axis"></div>
+<div class="stats" id="stats"></div>
+<h3 class="sub">Waiting vs CPU time per process</h3><div id="wch"></div>
+<div class="lg"><span style="--k:var(--c5)">Time spent waiting</span><span style="--k:var(--c3)">CPU burst</span></div>
+<h3 class="sub">Processes waiting in the ready queue</h3><div id="rqc"></div>
+<p id="rqs" style="margin:8px 0 0;color:var(--mute);font-size:15px"></p>
+<div class="scroll" style="margin-top:16px"><table id="tbl"></table></div>
+</div>
+</header>
+
+<section id="runner"><h2>Live runner</h2>
+<p class="lead" style="margin:0 0 16px">Edit the processes, pick an algorithm and press Run. The CPU, ready queue and Gantt chart update tick by tick. Drag the slider to jump to any moment, or step forwards and back. Lower priority numbers run first.</p>
+<div class="demo" style="margin-top:0">
+<div class="bar"><label for="lrex">Example</label><select id="lrex"><option value="classic">Textbook mix</option><option value="convoy">Convoy effect (try FCFS)</option><option value="starve">Starvation (try preemptive priority)</option><option value="idle">Idle gaps</option><option value="fair">Three equal jobs (try Round Robin)</option></select>
+<button id="lradd">Add process</button><button id="lrdel">Remove last</button></div>
+<div class="scroll"><table id="lrt"></table></div>
+<div class="bar" style="margin-top:14px"><label for="lra">Algorithm</label><select id="lra"><option value="FCFS">FCFS</option><option value="SJF">SJF</option><option value="SRTF">SRTF (preemptive SJF)</option><option value="PRIO">Priority</option><option value="PRIO-P">Priority (preemptive)</option><option value="RR" selected>Round Robin</option><option value="MLFQ">MLFQ</option></select>
+<label for="lrq">Quantum</label><input id="lrq" type="number" min="1" max="10" value="2" style="width:70px"></div>
+<div class="bar"><button id="lrp">Run</button><button id="lrb">Back</button><button id="lrs">Step</button><button id="lrr">Reset</button>
+<label for="lrv">Speed</label><select id="lrv"><option value="1000">0.5x</option><option value="500" selected>1x</option><option value="250">2x</option><option value="100">5x</option></select></div>
+<input id="lrk" type="range" min="0" max="0" value="0" style="width:100%" aria-label="Time">
+<div id="lrview" style="margin-top:10px"></div>
+<h3 class="sub">Event log</h3><div id="lrlog"></div>
+<h3 class="sub">Results</h3><div class="scroll"><table id="lrm"></table></div></div>
+
+<div class="demo" style="margin-top:20px"><h3 class="sub" style="margin-top:0">Page replacement, one reference at a time</h3>
+<div class="bar"><label for="pgi">Reference string</label><input id="pgi" value="7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1" style="flex:1;min-width:220px"><label for="pgn">Frames</label><select id="pgn"><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
+<label for="pga">Policy</label><select id="pga"><option>FIFO</option><option selected>LRU</option><option>OPT</option></select></div>
+<div class="bar"><button id="pgp">Run</button><button id="pgb">Back</button><button id="pgs">Step</button><button id="pgr">Reset</button>
+<label for="pgv">Speed</label><select id="pgv"><option value="1000">0.5x</option><option value="500" selected>1x</option><option value="250">2x</option><option value="100">5x</option></select></div>
+<input id="pgk" type="range" min="0" max="20" value="0" style="width:100%" aria-label="Reference number">
+<div id="pgview" style="margin-top:10px"></div></div></section>
+
+<section id='timetravel'><h2>Time-travel debugger</h2>
+<p class='lead' style='margin:0 0 16px'>Jump back to any moment of the live runner's schedule, change one scheduling decision, and watch the timeline fork. It uses the processes, algorithm and quantum currently set in the live runner above.</p>
+<div class='demo' style='margin-top:0'><div class='bar'><label for='ttk'>Go back to time</label><input id='ttk' type='range' min='0' max='0' value='0' style='flex:1;min-width:160px'><output id='tto' for='ttk'>t = 0</output></div>
+<div id='ttview'></div><div class='bar' style='margin-top:14px'><button id='ttbest'>Find the best single change</button></div><div id='ttres' aria-live='polite'></div></div></section>
+
+<section id='sound'><h2>Hear the schedule</h2>
+<p class='lead' style='margin:0 0 16px'>Every process gets its own note, played while it holds the CPU. Choose two algorithms to hear them side by side: the first in your left ear, the second in your right. Headphones work best. It plays the processes from the live runner.</p>
+<div class='demo' style='margin-top:0'><div class='bar'><label for='sda'>Left ear</label><select id='sda'><option value='FCFS' selected>FCFS</option><option value='SJF'>SJF</option><option value='SRTF'>SRTF</option><option value='PRIO'>Priority</option><option value='PRIO-P'>Priority (preemptive)</option><option value='RR'>Round Robin</option><option value='MLFQ'>MLFQ</option></select>
+<label for='sdb'>Right ear</label><select id='sdb'><option value=''>none</option><option value='FCFS'>FCFS</option><option value='SJF'>SJF</option><option value='SRTF'>SRTF</option><option value='PRIO'>Priority</option><option value='PRIO-P'>Priority (preemptive)</option><option value='RR' selected>Round Robin</option><option value='MLFQ'>MLFQ</option></select>
+<label for='sdv'>Speed</label><select id='sdv'><option value='500'>slow</option><option value='300' selected>normal</option><option value='160'>fast</option></select><button id='sdp'>Play</button></div>
+<div id='sdview'></div><div class='lg' id='sdleg'></div><p style='margin:10px 0 0;color:var(--mute);font-size:15px'>A soft tick marks each context switch. Round Robin sounds busy because it switches often, while FCFS plays long steady notes.</p></div></section>
+
+<section id="game"><h2>Be the scheduler</h2>
+<p class="lead" style="margin:0 0 16px">You are the CPU scheduler. Choose which ready process runs next and try to beat the algorithms on average waiting time. Shortest-remaining-time-first is provably optimal for this measure, so the hint shows its choice.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><span>Run the chosen process for</span></div><div class="bar" id="gst" role="group" aria-label="Run length"></div>
+<div id="gview"></div>
+<div class="bar" style="margin-top:14px"><button id="ghint">Hint</button><button id="gundo">Undo</button><button id="gnew">New challenge</button></div>
+<div class='bar'><label for='gcode'>Challenge code</label><input id='gcode' style='flex:1;min-width:200px' autocomplete='off' spellcheck='false'><button id='gload'>Load</button><button id='gcopy'>Copy</button><span id='gmsg' role='status' style='color:var(--mute);overflow-wrap:anywhere'></span></div>
+<div id="gres" aria-live="polite"></div></div></section>
+
+<section id="pager"><h2>Be the pager</h2>
+<p class="lead" style="margin:0 0 16px">You are the virtual-memory manager. Hits and empty frames are handled for you. When a page fault finds every frame full, you choose which page to evict. Fewer faults is better. The future is hidden unless you choose to peek, and the hint shows what the optimal policy would evict.</p>
+<div class="demo" style="margin-top:0"><div class="bar" id="kfr" role="group" aria-label="Number of frames"></div><div class="bar" id="kpk" role="group" aria-label="Future visibility"></div>
+<div id="kview"></div>
+<div class="bar" style="margin-top:14px"><button id="khint">Hint</button><button id="kundo">Undo</button><button id="knew">New challenge</button></div>
+<div class='bar'><label for='kcode'>Challenge code</label><input id='kcode' style='flex:1;min-width:200px' autocomplete='off' spellcheck='false'><button id='kload'>Load</button><button id='kcopy'>Copy</button><span id='kmsg' role='status' style='color:var(--mute);overflow-wrap:anywhere'></span></div>
+<div id="kres" aria-live="polite"></div></div></section>
+
+<section id="lab"><h2>OS crash lab</h2>
+<p class="lead" style="margin:0 0 16px">Something is broken. Reproduce the bug, then choose a fix. Every outcome comes from running a simulation, so a plausible-sounding fix can still fail.</p>
+<div class="demo" style="margin-top:0"><div class="bar" id="labt" role="group" aria-label="Scenario"></div><div id="labv"></div></div></section>
+
+<section id="detective"><h2>Bug detective</h2>
+<p class="lead" style="margin:0 0 16px">A system is misbehaving. Read the monitor output, then name the bug. Each case is generated by running a real simulation, so the numbers change every time. Wrong answers are worth learning from: some of these look alike.</p>
+<div class="demo" style="margin-top:0"><pre class="codeblock" id="dxmon" tabindex="0" aria-label="System monitor output"></pre>
+<p id="dxclue" style="margin:10px 0 0;font-weight:500"></p>
+<h3 class="sub">What is the bug?</h3><div class="chips" id="dxopt" style="gap:10px"></div>
+<div class="bar" style="margin-top:14px"><button id="dxhint">Extra clue</button><button id="dxnext">Next case</button></div>
+<div id="dxout" aria-live="polite"></div><p id="dxscore" style="margin:12px 0 0;color:var(--mute)"></p></div></section>
+
+<section id='shell'><h2>KernelSim shell</h2>
+<p class='lead' style='margin:0 0 16px'>A tiny operating system you can drive from a command line. Spawn processes, switch schedulers, advance the CPU, kill things and touch memory pages. Type <code>help</code>, press Tab to complete, or tap a command below.</p>
+<div class='demo' style='margin-top:0'><div class='bar' id='shq' role='group' aria-label='Quick commands'></div>
+<div id='termout' class='term' role='log' aria-live='polite' tabindex='0'></div>
+<div class='termin'><span>kernelsim$</span><input id='terminp' aria-label='Command' autocomplete='off' autocapitalize='off' spellcheck='false'></div></div></section>
+
+<section id='interleave'><h2>Every interleaving of a race</h2>
+<p class='lead' style='margin:0 0 16px'>Two threads each run counter++, which is really three steps: load, add, store. Those six steps can interleave in exactly 20 ways. Build one yourself, or click any of the 20 to replay it.</p>
+<div class='demo' style='margin-top:0'><div class='bar' id='ilm' role='group' aria-label='Locking'></div><div id='ilview'></div>
+<div class='bar' style='margin-top:14px'><button id='il1'></button><button id='il2'></button><button id='ilr'>Reset</button><button id='ilrand'>Random order</button></div>
+<p id='ilsum' style='font-weight:500;margin:6px 0 10px'></p>
+<div id='ilgrid' style='display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px'></div>
+<div class='lg'><span style='--k:var(--c1)'>Thread 1 step</span><span style='--k:var(--c2)'>Thread 2 step</span><span style='--k:var(--c5)'>Update lost</span><span style='--k:var(--c3)'>Correct</span></div></div></section>
+
+<section id="compare"><h2>Which scheduler wins?</h2>
+<p class="lead" style="margin:0 0 16px">Average waiting, turnaround and response time for the same four processes under each algorithm (lower is better).</p>
+<div class="demo" style="margin-top:0"><div id="cmp"></div><div class="lg"><span style="--k:var(--c1)">Waiting</span><span style="--k:var(--c2)">Turnaround</span><span style="--k:var(--c3)">Response</span></div>
+<h3 class="sub">Full metrics (best value per column highlighted)</h3>
+<div class="scroll"><table id="ctbl"></table></div>
+<h3 class="sub">Overall profile (further out is better)</h3><div id="rad"></div>
+<div class="lg"><span style="--k:var(--c1)">FCFS</span><span style="--k:var(--c2)">SJF</span><span style="--k:var(--c3)">Priority</span><span style="--k:var(--c4)">RR</span><span style="--k:var(--c5)">MLFQ</span></div>
+<p style="margin:8px 0 0;color:var(--mute);font-size:15px">Each axis is scaled against the best algorithm for that measure, so a full-size corner means it won.</p></div></section>
+
+<section id="quantum"><h2>Choosing the Round Robin quantum</h2>
+<p class="lead" style="margin:0 0 16px">A small quantum answers quickly but switches constantly. A large one behaves like FCFS. This sweeps the quantum from 1 to 10 for the processes in the demo at the top (use Randomise processes there to try other workloads).</p>
+<div class="demo" style="margin-top:0"><h3 class="sub" style="margin-top:0">Average waiting and response time</h3><div id="qw"></div>
+<div class="lg"><span style="--k:var(--c1)">Waiting</span><span style="--k:var(--c3)">Response</span></div>
+<h3 class="sub">Context switches</h3><div id="qc"></div></div></section>
+
+<section id="modules"><h2>What is inside</h2>
+<div class="grid">
+<div style="--k:var(--c1)"><h3>Processes and PCBs</h3><p>Process creation, process-control blocks and the full state-transition cycle.</p></div>
+<div style="--k:var(--c2)"><h3>CPU scheduling</h3><p>FCFS, SJF, Priority, Round Robin and Multilevel Feedback Queue, with Gantt traces and comparisons of waiting, turnaround and response time, throughput and CPU utilisation.</p></div>
+<div style="--k:var(--c3)"><h3>Virtual memory</h3><p>Paging, page-table address translation, page-fault handling, and FIFO, LRU and Optimal replacement with fault-rate and utilisation analysis.</p></div>
+<div style="--k:var(--c4)"><h3>Concurrency</h3><p>Threads, mutexes and semaphores. Race conditions, critical sections, deadlock scenarios and shared-resource coordination.</p></div>
+<div style="--k:var(--c5)"><h3>Inter-process communication</h3><p>Pipes, shared memory and message queues for exchanging data between isolated processes.</p></div>
+<div style="--k:var(--c1)"><h3>File management</h3><p>File creation, reads and writes, directory structures, file allocation and controlled access to storage.</p></div>
+</div></section>
+
+<section id="paging"><h2>Try page replacement</h2>
+<div class="demo" style="margin-top:0">
+<div class="bar"><label for="refs">Reference string</label>
+<input id="refs" value="7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1" style="flex:1;min-width:220px;font:500 15px ui-monospace,monospace;padding:8px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink)">
+<label for="fr">Frames</label><select id="fr"><option>2</option><option selected>3</option><option>4</option><option>5</option></select><button id="bel">Load Belady's anomaly example</button></div>
+<div class="bar" id="palgos" role="group" aria-label="Replacement policy"></div>
+<div id="pg" class="pg"></div>
+<p id="pgsum" style="margin:0;font-weight:500"></p>
+<h3 class="sub">Which pages are in memory</h3><div id="res"></div>
+<div class="lg"><span style="--k:var(--c3)">In a frame</span><span style="--k:var(--c5)">Loaded by a page fault</span></div>
+<h3 style="margin:24px 0 8px;font-size:20px">Faults as frames increase</h3>
+<div id="pfc"></div><div class="lg"><span style="--k:var(--c5)">FIFO</span><span style="--k:var(--c1)">LRU</span><span style="--k:var(--c3)">Optimal</span></div>
+<h3 class="sub">Cumulative faults over the reference string</h3>
+<div id="cum"></div><div class="lg"><span style="--k:var(--c5)">FIFO</span><span style="--k:var(--c1)">LRU</span><span style="--k:var(--c3)">Optimal</span></div>
+<h3 class="sub">Policy summary for the chosen frame count</h3>
+<div class="scroll"><table id="ptbl"></table></div>
+<h3 class="sub">Fault rate by policy and frame count (darker is worse)</h3><div class="scroll"><table id="hm"></table></div>
+</div></section>
+
+<section id="addr"><h2>Address translation</h2>
+<p class="lead" style="margin:0 0 16px">A virtual address splits into a page number and an offset. The page table maps the page to a physical frame.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="va">Virtual address</label><input id="va" type="number" min="0" value="9000"><label for="psz">Page size (bytes)</label><select id="psz"><option>1024</option><option selected>4096</option></select></div>
+<p id="xr" style="font-weight:500;margin:0 0 12px"></p><div id="xmap"></div><div class="scroll" style="margin-top:12px"><table id="pt"></table></div></div></section>
+
+<section id="race"><h2>Race conditions</h2>
+<p class="lead" style="margin:0 0 16px">Two threads each add 1 to a shared counter 1,000 times, so the correct total is 2,000. Without a mutex, updates overwrite each other.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><button id="rr">Run 10 new trials</button></div><div id="rc"></div>
+<div class="lg"><span style="--k:var(--c5)">No lock</span><span style="--k:var(--c3)">With mutex</span></div><p id="rs" style="margin:12px 0 0;font-weight:500"></p></div></section>
+
+<section id="deadlock"><h2>Deadlock avoidance</h2>
+<p class="lead" style="margin:0 0 16px">The Banker's algorithm checks whether the system can still finish every process in some order. Pick the free resources to see the result.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="av">Available (R1 R2 R3)</label><select id="av"><option>3 3 2</option><option>2 2 1</option><option>1 1 1</option><option>0 0 0</option></select></div>
+<p id="bres" style="font-weight:500;margin:0 0 12px"></p>
+<div class="scroll"><table id="btbl"></table></div>
+<h3 class="sub">Safe-sequence trace</h3><div class="scroll"><table id="btr"></table></div>
+<h3 class="sub">What a deadlock looks like</h3>
+<svg class="chart" viewBox="0 0 600 250" role="img" aria-label="Resource allocation graph with a cycle: P1 waits for R2, held by P2, which waits for R1, held by P1">
+<defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--ink)"/></marker></defs>
+<path class="ar" d="M182 50H418" stroke-dasharray="6 5" marker-end="url(#ah2)"/><text class="t" x="300" y="40" text-anchor="middle">P1 waits for R2</text>
+<path class="ar" d="M450 82V158" marker-end="url(#ah2)"/><text class="t" x="462" y="125">R2 is held by P2</text>
+<path class="ar" d="M418 200H182" stroke-dasharray="6 5" marker-end="url(#ah2)"/><text class="t" x="300" y="224" text-anchor="middle">P2 waits for R1</text>
+<path class="ar" d="M150 158V82" marker-end="url(#ah2)"/><text class="t" x="138" y="125" text-anchor="end">R1 is held by P1</text>
+<circle class="bx" cx="150" cy="50" r="30"/><text class="bn" x="150" y="55">P1</text>
+<rect class="bx" x="418" y="22" width="64" height="56" rx="8"/><text class="bn" x="450" y="55">R2</text>
+<circle class="bx" cx="450" cy="190" r="30"/><text class="bn" x="450" y="195">P2</text>
+<rect class="bx" x="118" y="162" width="64" height="56" rx="8"/><text class="bn" x="150" y="195">R1</text></svg>
+<p style="margin:8px 0 0;color:var(--mute);font-size:15px">Circles are processes, squares are resources. Solid arrows show who holds a resource, dashed arrows show who is waiting. A cycle means no process can ever continue.</p></div></section>
+
+<section id="files"><h2>File allocation</h2>
+<p class="lead" style="margin:0 0 16px">The same sequence on a 32-block disk: create A (5 blocks), B (3), C (8), D (4), E (6), delete B and D, then create F (8).</p>
+<div class="demo" style="margin-top:0"><div class="bar" id="fat" role="group" aria-label="Allocation method"></div>
+<div id="disk" class="disk" role="img" aria-label="Disk block map"></div>
+<div class="stats" id="fst"></div><p id="fnote" style="margin:14px 0 0;color:var(--mute)"></p></div></section>
+
+<section id="ipc"><h2>IPC at a glance</h2>
+<div class="demo" style="margin-top:0"><div class="scroll"><table>
+<tr><th>Mechanism</th><th>Data path</th><th>Synchronisation</th><th>Best for</th></tr>
+<tr><td>Pipe</td><td>Copied through a kernel buffer</td><td>Built in: reads block until data arrives</td><td>Streaming between related processes</td></tr>
+<tr><td>Message queue</td><td>Copied through a kernel queue</td><td>Built in, with typed messages</td><td>Discrete messages between unrelated processes</td></tr>
+<tr><td>Shared memory</td><td>No copy, both processes map the same pages</td><td>You provide it (semaphores or mutexes)</td><td>Large, frequent data exchange</td></tr>
+</table></div></div></section>
+
+<section id="tlb"><h2>Effective memory access time</h2>
+<p class="lead" style="margin:0 0 16px">Every access checks the TLB first. On a miss, a second memory access reads the page table. The dashed line marks your chosen hit ratio.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="th">TLB hit ratio</label><input id="th" type="range" min="50" max="100" value="90"><output id="tho" for="th">90%</output>
+<label for="tt">TLB lookup (ns)</label><input id="tt" type="number" min="0" value="10" style="width:90px"><label for="tm">Memory access (ns)</label><input id="tm" type="number" min="1" value="100" style="width:90px"></div>
+<p id="te" style="font-weight:500;margin:0 0 8px"></p><div id="tch"></div></div></section>
+
+<section id="pc"><h2>Producer and consumer</h2>
+<p class="lead" style="margin:0 0 16px">A producer adds items to a bounded buffer and a consumer removes them. Semaphores make the producer wait when the buffer is full and the consumer wait when it is empty.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="bs">Buffer size</label><select id="bs"><option>2</option><option selected>4</option><option>8</option></select>
+<label for="pp">Producer</label><select id="pp"><option value="0.4">slow</option><option value="0.6" selected>medium</option><option value="0.9">fast</option></select>
+<label for="cp">Consumer</label><select id="cp"><option value="0.4" selected>slow</option><option value="0.6">medium</option><option value="0.9">fast</option></select><button id="pcr">Run again</button></div>
+<h3 class="sub" style="margin-top:0">Items in the buffer over 60 time steps</h3><div id="pcc"></div><div class="stats" id="pcs"></div></div></section>
+
+<section id="util"><h2>Multiprogramming and CPU utilisation</h2>
+<p class="lead" style="margin:0 0 16px">If each process spends a fraction p of its time waiting for I/O, n processes in memory keep the CPU busy about 1 − p<sup>n</sup> of the time. More processes hide more I/O wait, with diminishing returns.</p>
+<div class="demo" style="margin-top:0"><div id="uch"></div><div class="lg"><span style="--k:var(--c3)">20% I/O wait</span><span style="--k:var(--c2)">50% I/O wait</span><span style="--k:var(--c5)">80% I/O wait</span></div></div></section>
+
+<section id="dining"><h2>Dining philosophers</h2>
+<p class="lead" style="margin:0 0 16px">Five philosophers share five forks and need two to eat. If everyone grabs the left fork first, they can all end up waiting forever. Picking the lower-numbered fork first breaks the cycle.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><button id="dr">Run again</button></div>
+<h3 class="sub" style="margin-top:0">Meals eaten over 300 time steps</h3><div id="dch"></div>
+<div class="lg"><span style="--k:var(--c5)">Naive</span><span style="--k:var(--c3)">Ordered forks</span></div>
+<div class="grid" id="dres" style="margin-top:16px"></div>
+<div class="lg"><span style="--k:var(--line)">Thinking</span><span style="--k:var(--c2)">Holding one fork</span><span style="--k:var(--c3)">Eating</span></div>
+<p id="dsum" style="margin:12px 0 0;font-weight:500"></p></div></section>
+
+<section id="alloc"><h2>Memory allocation</h2>
+<p class="lead" style="margin:0 0 16px">Free blocks of 100, 500, 200, 300 and 600 KB receive four requests: 212, 417, 112 and 426 KB. Where each request lands depends on the strategy.</p>
+<div class="demo" style="margin-top:0"><div class="bar" id="mat" role="group" aria-label="Allocation strategy"></div>
+<div id="mach"></div>
+<div class="lg"><span style="--k:var(--c1)">R1 212 KB</span><span style="--k:var(--c2)">R2 417 KB</span><span style="--k:var(--c3)">R3 112 KB</span><span style="--k:var(--c4)">R4 426 KB</span><span style="--k:var(--line)">Free</span></div>
+<div class="stats" id="mast"></div><p id="manote" style="margin:14px 0 0;color:var(--mute)"></p></div></section>
+
+<section id="pgsize"><h2>Choosing a page size</h2>
+<p class="lead" style="margin:0 0 16px">Small pages waste little inside the last page but need a large page table. Large pages do the opposite. The best size sits where the two costs meet, near the square root of 2 × process size × entry size.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="ps">Process size (KB)</label><input id="ps" type="number" min="16" value="1024" style="width:110px"><label for="pe">Page-table entry (bytes)</label><input id="pe" type="number" min="1" value="8" style="width:80px"></div>
+<p id="pso" style="font-weight:500;margin:0 0 8px"></p><div id="psc"></div>
+<div class="lg"><span style="--k:var(--c1)">Page table</span><span style="--k:var(--c5)">Internal fragmentation</span><span style="--k:var(--c4)">Total</span></div></div></section>
+
+<section id="hier"><h2>Memory hierarchy</h2>
+<p class="lead" style="margin:0 0 16px">Typical access times, on a log scale. These are rough orders of magnitude, not measurements of any one machine. They explain why paging and caching matter.</p>
+<div class="demo" style="margin-top:0"><div id="hch"></div>
+<p style="margin:8px 0 0;font-weight:500">If an L1 cache hit took 1 second, a hard-disk access would take about 4 months.</p></div></section>
+
+<section id="bench"><h2>Scheduler benchmark</h2>
+<p class="lead" style="margin:0 0 16px">One workload can favour any algorithm. This runs all five on the same batch of random workloads (4 to 5 processes each) and compares the results.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="mn">Random workloads</label><select id="mn"><option>100</option><option selected>300</option><option>1000</option></select><button id="mrun">Run again</button></div>
+<h3 class="sub" style="margin-top:0">Average waiting time</h3><div id="mch"></div>
+<div class="lg"><span style="--k:var(--c1)">Mean (bar)</span><span style="--k:var(--ink)">10th to 90th percentile (line)</span></div>
+<div class="scroll" style="margin-top:12px"><table id="mtb"></table></div>
+<p style="margin:10px 0 0;color:var(--mute);font-size:15px">Ties count as a win for every tied algorithm, so the last column can add up to more than 100%.</p></div></section>
+
+<section id="disk"><h2>Disk scheduling</h2>
+<p class="lead" style="margin:0 0 16px">The order in which a disk head services requests changes how far it travels. Enter cylinder requests (0 to 199) and a starting position.</p>
+<div class="demo" style="margin-top:0"><div class="bar"><label for="dq">Requests</label><input id="dq" value="98 183 37 122 14 124 65 67" style="flex:1;min-width:200px"><label for="dh">Head</label><input id="dh" type="number" min="0" max="199" value="53" style="width:80px"></div>
+<div class="bar" id="dkt" role="group" aria-label="Disk scheduling algorithm"></div>
+<div id="dkc"></div><p id="dko" style="margin:8px 0 0;font-weight:500"></p><div class="stats" id="dks"></div>
+<p style="margin:12px 0 0;color:var(--mute);font-size:15px">SCAN sweeps toward cylinder 0 first, then reverses. C-SCAN sweeps upward, jumps back to 0 and continues.</p></div></section>
+
+<section id="amdahl"><h2>Parallel speedup (Amdahl's law)</h2>
+<p class="lead" style="margin:0 0 16px">The serial part of a program limits what extra cores can do. A program that is 95% parallel never gets past 20 times faster, however many cores you add.</p>
+<div class="demo" style="margin-top:0"><div id="amc"></div>
+<div class="lg"><span style="--k:var(--c5)">50% parallel</span><span style="--k:var(--c2)">90% parallel</span><span style="--k:var(--c1)">95% parallel</span><span style="--k:var(--c3)">99% parallel</span></div></div></section>
+
+<section id="ptl"><h2>Flat vs two-level page tables</h2>
+<p class="lead" style="margin:0 0 16px">With 32-bit addresses, 4 KB pages and 4-byte entries, a flat page table always costs 4 MB. A two-level table only allocates the second-level tables a process actually uses.</p>
+<div class="demo" style="margin-top:0"><div id="ptlc"></div>
+<div class="lg"><span style="--k:var(--c5)">Flat table</span><span style="--k:var(--c3)">Two-level table</span></div>
+<p style="margin:10px 0 0;color:var(--mute);font-size:15px">Assumes the mapped memory is contiguous. Two-level tables win until nearly the whole address space is in use.</p></div></section>
+
+<section id="states"><h2>Life of a process</h2>
+<div class="demo" style="margin-top:0"><svg class="chart" viewBox="0 0 700 270" role="img" aria-label="Process state diagram: new, ready, running, waiting, terminated">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor" style="color:var(--ink)"/></marker></defs>
+<g><rect class="bx" x="10" y="110" width="100" height="50" rx="10"/><text class="bn" x="60" y="140">New</text>
+<rect class="bx" x="195" y="110" width="100" height="50" rx="10"/><text class="bn" x="245" y="140">Ready</text>
+<rect class="bx" x="400" y="110" width="100" height="50" rx="10" style="fill:var(--c2)"/><text class="bn" x="450" y="140">Running</text>
+<rect class="bx" x="590" y="110" width="100" height="50" rx="10"/><text class="bn" x="640" y="140">Terminated</text>
+<rect class="bx" x="297" y="205" width="100" height="50" rx="10"/><text class="bn" x="347" y="235">Waiting</text></g>
+<path class="ar" d="M110 135H193" marker-end="url(#ah)"/><text class="t" x="128" y="126">admit</text>
+<path class="ar" d="M295 125H398" marker-end="url(#ah)"/><text class="t" x="322" y="117">dispatch</text>
+<path class="ar" d="M420 108C400 40 290 40 262 108" marker-end="url(#ah)"/><text class="t" x="296" y="52">time slice ends</text>
+<path class="ar" d="M500 135H588" marker-end="url(#ah)"/><text class="t" x="530" y="126">exit</text>
+<path class="ar" d="M430 162C430 215 410 230 399 230" marker-end="url(#ah)"/><text class="t" x="432" y="215">waits for I/O</text>
+<path class="ar" d="M297 230C260 230 245 200 245 162" marker-end="url(#ah)"/><text class="t" x="150" y="215">I/O completes</text></svg></div></section>
+
+<section id="code" hidden><h2>Under the hood</h2>
+<p class="lead" style="margin:0 0 16px">Excerpts and output from the C/C++ implementation.</p>
+<div class="demo" style="margin-top:0"><div class="bar" id="cdt" role="group" aria-label="Code excerpt"></div>
+<p id="cdn" style="margin:0 0 10px;color:var(--mute)"></p><pre class="codeblock" tabindex="0"><code id="cdc"></code></pre></div></section>
+
+<section><h2>Built with</h2>
+<p>C and C++, POSIX threads, Linux system calls, shell scripting and process-level resource monitoring on Linux. Companion tools: a Streamlit app and a Colab notebook.</p>
+<div class="links">
+<a href="https://github.com/Harshini-Suresha/kernelsim" id="l1">Source code</a><a class="alt" href="https://share.streamlit.io/" id="l2">Streamlit app</a><a class="alt" href="https://colab.research.google.com/github/Harshini-Suresha/kernelsim/blob/main/KernelSim.ipynb" id="l3">Colab notebook</a></div>
+</section>
+<footer></footer>
+</div>
+<script>
+/* UNDER THE HOOD: paste real excerpts from your C/C++ project (or real terminal output) into this list.
+   Each entry looks like: {title:"Round Robin loop", note:"scheduler.c", text:`...your code or output...`}
+   While the list is empty, the "Under the hood" section and its menu link stay hidden. */
+const KERNELSIM_CODE=[];
+let cdCur="";
+function cdShow(){const e=KERNELSIM_CODE.find(x=>x.title===cdCur)||KERNELSIM_CODE[0];$("cdn").textContent=e.note||"";$("cdc").textContent=e.text}
+function codeInit(){
+ if(!KERNELSIM_CODE.length)return;
+ cdCur=KERNELSIM_CODE[0].title;$("code").hidden=false;$("navcode").hidden=false;
+ mkTabs("cdt",KERNELSIM_CODE.map(x=>x.title),()=>cdCur,v=>cdCur=v,cdShow);cdShow()}
+function navInit(){
+ const links=[...document.querySelectorAll("nav.top a")],map=new Map(links.map(a=>[a.getAttribute("href").slice(1),a]));
+ const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.removeAttribute("aria-current"));const a=map.get(e.target.id);if(a)a.setAttribute("aria-current","true")}})},{rootMargin:"-20% 0px -70% 0px"});
+ map.forEach((a,id)=>{const s=document.getElementById(id);if(s)io.observe(s)})}
+const COLORS=["#2f5bd8","#e0a526","#1f8a8a","#9a3fb0","#d9534f"];
+const P=[{id:"P1",a:0,b:5,p:2},{id:"P2",a:1,b:3,p:1},{id:"P3",a:2,b:8,p:3},{id:"P4",a:3,b:6,p:2}];
+function mlfq(){
+ const Qs=[2,4,8],q=[[],[],[]],rem={},first={},fin={},g=[],seen=new Set();P.forEach(p=>rem[p.id]=p.b);let t=0,done=0;
+ const adm=()=>P.filter(p=>p.a<=t&&!seen.has(p.id)).forEach(p=>{seen.add(p.id);q[0].push(p)});adm();
+ while(done<P.length){const l=q.findIndex(x=>x.length);
+  if(l<0){t=Math.min(...P.filter(p=>!seen.has(p.id)).map(p=>p.a));adm();continue}
+  const p=q[l].shift(),r=Math.min(Qs[l],rem[p.id]);if(first[p.id]===undefined)first[p.id]=t;
+  const last=g[g.length-1];if(last&&last.id===p.id&&last.e===t)last.e=t+r;else g.push({id:p.id,s:t,e:t+r});
+  t+=r;rem[p.id]-=r;adm();
+  if(rem[p.id]===0){fin[p.id]=t;done++}else q[Math.min(l+1,2)].push(p)}
+ return{g,first,fin,end:t}}
+const AL=[[0,1,0],[2,0,0],[3,0,2],[2,1,1],[0,0,2]],MX=[[7,5,3],[3,2,2],[9,0,2],[2,2,2],[4,3,3]];
+function bank(){
+ const av=document.getElementById("av").value.split(" ").map(Number),need=AL.map((a,i)=>a.map((x,j)=>MX[i][j]-x));
+ let w=av.slice(),done=[],tr="";
+ while(done.length<5){const i=need.findIndex((nd,k)=>!done.includes(k)&&nd.every((x,j)=>x<=w[j]));if(i<0)break;
+  const before=w.join(", ");w=w.map((x,j)=>x+AL[i][j]);tr+=`<tr><td>P${i}</td><td>${before}</td><td>${w.join(", ")}</td></tr>`;done.push(i)}
+ const safe=done.length===5,stuck=[0,1,2,3,4].filter(i=>!done.includes(i)).map(i=>"P"+i).join(", ");
+ document.getElementById("bres").textContent=safe?`Safe state. One order that works: ${done.map(i=>"P"+i).join(" then ")}.`:`Unsafe state. With ${w.join(", ")} free, ${stuck} cannot finish, so deadlock is possible.`;
+ document.getElementById("btbl").innerHTML="<tr><th>Process</th><th>Allocated</th><th>Max</th><th>Still needs</th></tr>"+AL.map((a,i)=>`<tr><td>P${i}</td><td>${a.join(", ")}</td><td>${MX[i].join(", ")}</td><td>${need[i].join(", ")}</td></tr>`).join("");
+ document.getElementById("btr").innerHTML="<tr><th>Runs to completion</th><th>Free before</th><th>Free after release</th></tr>"+(tr||"<tr><td colspan=3>No process can start.</td></tr>")}
+let fm="contiguous";
+function diskView(){
+ const N=32,map=Array(N).fill(null),extra=fm==="indexed"?1:0;let failed=false;
+ [["A",5],["B",3],["C",8],["D",4],["E",6],["-","B"],["-","D"],["F",8]].forEach(([n,k])=>{
+  if(n==="-"){for(let i=0;i<N;i++)if(map[i]&&map[i][0]===k)map[i]=null;return}
+  const need=k+extra;
+  if(fm==="contiguous"){let s=-1,run=0;for(let i=0;i<N;i++){run=map[i]?0:run+1;if(run===need){s=i-need+1;break}}
+   if(s<0){if(n==="F")failed=true;return}for(let i=s;i<s+need;i++)map[i]=[n,0]}
+  else{const fr=map.map((x,i)=>x?-1:i).filter(i=>i>=0);if(fr.length<need){if(n==="F")failed=true;return}
+   fr.slice(0,need).forEach((b,j)=>map[b]=[n,fm==="indexed"&&j===0?1:0])}});
+ const FC=["#2f5bd8","#e0a526","#1f8a8a","#9a3fb0","#d9534f","#7a5a40"];
+ document.getElementById("disk").innerHTML=map.map(c=>c?`<div class="${c[1]?"x":""}" style="background:${FC["ABCDEF".indexOf(c[0])]};border-style:solid">${c[0]}</div>`:"<div></div>").join("");
+ let free=0,run=0,big=0;map.forEach(c=>{if(c){run=0}else{free++;run++;big=Math.max(big,run)}});
+ const frag=free?Math.round(100*(1-big/free)):0;
+ document.getElementById("fst").innerHTML=[[free,"free blocks"],[big,"largest free run"],[frag+"%","external fragmentation"],[failed?"Failed":"Allocated","file F (8 blocks)"]].map(([v,k])=>`<div><b>${v}</b><small>${k}</small></div>`).join("");
+ document.getElementById("fnote").textContent={contiguous:"Fast sequential and random access with no metadata, but files cannot grow in place and holes fragment the disk. A framed block is never used here.",linked:"Any free block can be used, so there is no external fragmentation, but random access walks the chain and every block stores a pointer.",indexed:"Any free block can be used and random access goes straight through the index block (framed), at the cost of one extra block per file."}[fm].replace(" A framed block is never used here.","")}
+mkTabs("fat",["contiguous","linked","indexed"],()=>fm,v=>fm=v,diskView);
+var QT=2;function sched(algo){if(algo==="MLFQ")return mlfq();
+ const rem={},first={},fin={},g=[];P.forEach(p=>rem[p.id]=p.b);let t=0,done=0;
+ const push=(id,s,e)=>{const l=g[g.length-1];if(l&&l.id===id&&l.e===s)l.e=e;else g.push({id,s,e})};
+ if(algo==="RR"){const q=[],seen=new Set(),Q=QT;
+  const adm=()=>P.filter(p=>p.a<=t&&!seen.has(p.id)).forEach(p=>{seen.add(p.id);q.push(p)});adm();
+  while(done<P.length){if(!q.length){t=Math.min(...P.filter(p=>!seen.has(p.id)).map(p=>p.a));adm();continue}
+   const p=q.shift(),r=Math.min(Q,rem[p.id]);if(first[p.id]===undefined)first[p.id]=t;push(p.id,t,t+r);t+=r;rem[p.id]-=r;adm();
+   if(rem[p.id]===0){fin[p.id]=t;done++}else q.push(p)}
+ }else{const key={FCFS:p=>p.a,SJF:p=>rem[p.id],Priority:p=>p.p}[algo];
+  while(done<P.length){const rd=P.filter(p=>p.a<=t&&rem[p.id]>0);
+   if(!rd.length){t=Math.min(...P.filter(p=>rem[p.id]>0).map(p=>p.a));continue}
+   const p=rd.reduce((x,y)=>key(y)<key(x)?y:x);first[p.id]=t;push(p.id,t,t+p.b);t+=p.b;rem[p.id]=0;fin[p.id]=t;done++}}
+ return{g,first,fin,end:t};
+}
+let cur="FCFS";
+function renderSched(){
+ const r=sched(cur),n=P.length;
+ const gantt=document.getElementById("gantt");gantt.style.setProperty("--u",(100/r.end)+"%");
+ gantt.innerHTML=r.g.map(s=>{const i=P.findIndex(p=>p.id===s.id);return`<div style="flex:${s.e-s.s};background:${COLORS[i]}">${s.id}</div>`}).join("");
+ document.getElementById("axis").innerHTML=r.g.map(s=>`<span style="flex:${s.e-s.s}">${s.e}</span>`).join("");
+ let w=0,tat=0,rs=0;
+ const rows=P.map(p=>{const T=r.fin[p.id]-p.a,W=T-p.b,R=r.first[p.id]-p.a;w+=W;tat+=T;rs+=R;return`<tr><td>${p.id}</td><td>${p.a}</td><td>${p.b}</td><td>${p.p}</td><td>${r.fin[p.id]}</td><td>${T}</td><td>${W}</td><td>${R}</td></tr>`}).join("");
+ document.getElementById("tbl").innerHTML="<tr><th>Process</th><th>Arrival</th><th>Burst</th><th>Priority</th><th>Done</th><th>Turnaround</th><th>Waiting</th><th>Response</th></tr>"+rows;
+ const f=x=>(x/n).toFixed(2);
+ document.getElementById("stats").innerHTML=[["Avg waiting",f(w)],["Avg turnaround",f(tat)],["Avg response",f(rs)],["Throughput",(n/r.end).toFixed(3)+"/tick"]].map(([k,v])=>`<div><b>${v}</b><small>${k}</small></div>`).join("");
+}
+function mkTabs(id,list,get,set,fn){const el=document.getElementById(id);
+ el.innerHTML="";list.forEach(a=>{const b=document.createElement("button");b.textContent=a;b.setAttribute("aria-pressed",a===get());
+  b.onclick=()=>{set(a);[...el.children].forEach(c=>c.setAttribute("aria-pressed",c.textContent===a));fn()};el.appendChild(b)})}
+mkTabs("algos",["FCFS","SJF","Priority","RR","MLFQ"],()=>cur,v=>cur=v,()=>{renderSched();wChart()});renderSched();
+
+let pol="LRU";
+function paging(){
+ const refs=document.getElementById("refs").value.split(/[\s,]+/).filter(Boolean).map(Number).filter(x=>!isNaN(x));
+ const F=+document.getElementById("fr").value;let mem=[],last={},faults=0,html="";
+ refs.forEach((r,i)=>{let fault=!mem.includes(r),ev=null;
+  if(fault){faults++;if(mem.length===F){
+   if(pol==="FIFO")ev=mem.shift();
+   else if(pol==="LRU"){ev=mem.reduce((a,b)=>last[b]<last[a]?b:a);mem.splice(mem.indexOf(ev),1)}
+   else{const nx=x=>{const j=refs.indexOf(x,i+1);return j<0?Infinity:j};ev=mem.reduce((a,b)=>nx(b)>nx(a)?b:a);mem.splice(mem.indexOf(ev),1)}}
+   mem.push(r)}
+  last[r]=i;html+=`<div class="${fault?"f":""}">${r}<small>${fault?"fault":"hit"}</small><i>${mem.map(m=>`<s>${m}</s>`).join("")}</i></div>`});
+ document.getElementById("pg").innerHTML=html;
+ resid();hm();document.getElementById("pgsum").textContent=`${pol}: ${faults} faults in ${refs.length} references (${(100*faults/(refs.length||1)).toFixed(0)}% fault rate)`;
+}
+mkTabs("palgos",["FIFO","LRU","OPT"],()=>pol,v=>pol=v,paging);
+function faultsOf(refs,F,pol){let mem=[],last={},f=0;
+ refs.forEach((r,i)=>{if(!mem.includes(r)){f++;if(mem.length===F){let ev;
+  if(pol==="FIFO")ev=mem.shift();
+  else{if(pol==="LRU")ev=mem.reduce((a,b)=>last[b]<last[a]?b:a);
+   else{const nx=x=>{const j=refs.indexOf(x,i+1);return j<0?Infinity:j};ev=mem.reduce((a,b)=>nx(b)>nx(a)?b:a)}
+   mem.splice(mem.indexOf(ev),1)}}
+  mem.push(r)}last[r]=i});return f}
+function pfChart(){
+ const refs=document.getElementById("refs").value.split(/[\s,]+/).filter(Boolean).map(Number).filter(x=>!isNaN(x));
+ const W=640,H=260,L=40,B=34,T=12,N=8,max=Math.max(refs.length,1);
+ const X=k=>L+(W-L-20)*(k-1)/(N-1),Y=v=>H-B-(H-B-T)*v/max;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Page faults versus number of frames">`;
+ const step=Math.max(1,Math.ceil(max/5));
+ for(let v=0;v<=max;v+=step)s+=`<line class="gl" x1="${L}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="t" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+ for(let k=1;k<=N;k++)s+=`<text class="t" x="${X(k)}" y="${H-12}" text-anchor="middle">${k}</text>`;
+ s+=`<text class="t" x="${(L+W)/2}" y="${H-1}" text-anchor="middle">frames</text>`;
+ [["FIFO","var(--c5)"],["LRU","var(--c1)"],["OPT","var(--c3)"]].forEach(([p,c])=>{
+  const pts=Array.from({length:N},(_,i)=>[X(i+1),Y(faultsOf(refs,i+1,p))]);
+  s+=`<polyline fill="none" style="stroke:${c}" stroke-width="2.5" points="${pts.map(q=>q.join(",")).join(" ")}"/>`+pts.map(q=>`<circle cx="${q[0]}" cy="${q[1]}" r="3.5" style="fill:${c}"/>`).join("")});
+ document.getElementById("pfc").innerHTML=s+"</svg>"}
+function cmpChart(){
+ const algos=["FCFS","SJF","Priority","RR","MLFQ"],cols=["var(--c1)","var(--c2)","var(--c3)"];
+ const data=algos.map(a=>{const r=sched(a);let w=0,t=0,s=0;P.forEach(p=>{const T=r.fin[p.id]-p.a;w+=T-p.b;t+=T;s+=r.first[p.id]-p.a});return[w/P.length,t/P.length,s/P.length]});
+ const max=Math.ceil(Math.max(...data.flat())/5)*5,W=640,H=280,L=40,B=34,T=14,gw=(W-L)/algos.length,bw=gw*0.22;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Average waiting, turnaround and response time per algorithm">`;
+ for(let v=0;v<=max;v+=5){const y=H-B-(H-B-T)*v/max;s+=`<line class="gl" x1="${L}" x2="${W}" y1="${y}" y2="${y}"/><text class="t" x="${L-6}" y="${y+4}" text-anchor="end">${v}</text>`}
+ data.forEach((d,i)=>{d.forEach((v,j)=>{const h=(H-B-T)*v/max,x=L+i*gw+gw*0.14+j*bw*1.05;
+  s+=`<rect x="${x}" y="${H-B-h}" width="${bw}" height="${h}" rx="3" style="fill:${cols[j]}"/><text class="t" x="${x+bw/2}" y="${H-B-h-4}" text-anchor="middle">${v.toFixed(1)}</text>`});
+  s+=`<text class="t" x="${L+i*gw+gw/2}" y="${H-12}" text-anchor="middle" style="font-weight:600">${algos[i]}</text>`});
+ document.getElementById("cmp").innerHTML=s+"</svg>"}
+const getRefs=()=>document.getElementById("refs").value.split(/[\s,]+/).filter(Boolean).map(Number).filter(x=>!isNaN(x));
+function faultSeq(refs,F,pol){let mem=[],last={},f=0,out=[];
+ refs.forEach((r,i)=>{if(!mem.includes(r)){f++;if(mem.length===F){let ev;
+  if(pol==="FIFO")ev=mem.shift();
+  else{if(pol==="LRU")ev=mem.reduce((a,b)=>last[b]<last[a]?b:a);
+   else{const nx=x=>{const j=refs.indexOf(x,i+1);return j<0?Infinity:j};ev=mem.reduce((a,b)=>nx(b)>nx(a)?b:a)}
+   mem.splice(mem.indexOf(ev),1)}}
+  mem.push(r)}last[r]=i;out.push(f)});return out}
+function cumChart(){
+ const refs=getRefs(),F=+document.getElementById("fr").value,n=Math.max(refs.length,1);
+ const pols=[["FIFO","var(--c5)"],["LRU","var(--c1)"],["OPT","var(--c3)"]],seqs=pols.map(([p])=>faultSeq(refs,F,p));
+ const max=Math.max(1,...seqs.map(s=>s[s.length-1]||0)),W=640,H=240,L=40,B=30,T=12;
+ const X=i=>L+(W-L-14)*(n===1?0:i/(n-1)),Y=v=>H-B-(H-B-T)*v/max,step=Math.max(1,Math.ceil(max/5));
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative page faults over time">`;
+ for(let v=0;v<=max;v+=step)s+=`<line class="gl" x1="${L}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="t" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+ s+=`<text class="t" x="${(L+W)/2}" y="${H-6}" text-anchor="middle">memory reference number</text>`;
+ pols.forEach(([p,c],k)=>{s+=`<polyline fill="none" stroke-width="2.5" stroke-linejoin="round" style="stroke:${c}" points="${seqs[k].map((v,i)=>X(i)+","+Y(v)).join(" ")}"/>`});
+ document.getElementById("cum").innerHTML=s+"</svg>";
+ document.getElementById("ptbl").innerHTML="<tr><th>Policy</th><th>Faults</th><th>Hits</th><th>Fault rate</th><th>Hit rate</th></tr>"+pols.map(([p],k)=>{const f=seqs[k][seqs[k].length-1]||0,h=refs.length-f;return`<tr><td>${p}</td><td>${f}</td><td>${h}</td><td>${(100*f/n).toFixed(0)}%</td><td>${(100*h/n).toFixed(0)}%</td></tr>`}).join("")}
+function wChart(){rqChart();
+ const r=sched(cur),W=640,rh=40,L=50,H=P.length*rh+30,sc=(W-L-10)/r.end;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Waiting time and CPU time for each process">`;
+ for(let v=0;v<=r.end;v+=2)s+=`<line class="gl" x1="${L+v*sc}" x2="${L+v*sc}" y1="4" y2="${H-22}"/><text class="t" x="${L+v*sc}" y="${H-6}" text-anchor="middle">${v}</text>`;
+ P.forEach((p,i)=>{const w=r.fin[p.id]-p.a-p.b,y=8+i*rh;
+  s+=`<text class="t" x="${L-8}" y="${y+18}" text-anchor="end">${p.id}</text><rect x="${L+p.a*sc}" y="${y}" width="${Math.max(w*sc,0)}" height="26" style="fill:var(--c5)"/><rect x="${L+(p.a+w)*sc}" y="${y}" width="${p.b*sc}" height="26" style="fill:var(--c3)"/>`;
+  if(w>0)s+=`<text x="${L+(p.a+w/2)*sc}" y="${y+18}" text-anchor="middle" style="fill:#fff;font:600 12px sans-serif">${w}</text>`;
+  s+=`<text x="${L+(p.a+w+p.b/2)*sc}" y="${y+18}" text-anchor="middle" style="fill:#fff;font:600 12px sans-serif">${p.b}</text>`});
+ document.getElementById("wch").innerHTML=s+"</svg>"}
+function ctable(){
+ const al=["FCFS","SJF","Priority","RR","MLFQ"],n=P.length,tot=P.reduce((x,p)=>x+p.b,0);
+ const rows=al.map(a=>{const r=sched(a);let w=0,t=0,s=0;P.forEach(p=>{const T=r.fin[p.id]-p.a;w+=T-p.b;t+=T;s+=r.first[p.id]-p.a});return[a,w/n,t/n,s/n,n/r.end,100*tot/r.end,r.g.length-1]});
+ const dir=[0,-1,-1,-1,1,1,-1],best=dir.map((d,j)=>j?(d<0?Math.min:Math.max)(...rows.map(r=>r[j])):0);
+ const fmt=[x=>x,x=>x.toFixed(2),x=>x.toFixed(2),x=>x.toFixed(2),x=>x.toFixed(3),x=>x.toFixed(0)+"%",x=>x];
+ document.getElementById("ctbl").innerHTML="<tr><th>Algorithm</th><th>Avg waiting</th><th>Avg turnaround</th><th>Avg response</th><th>Throughput (per tick)</th><th>CPU utilisation</th><th>Context switches</th></tr>"+rows.map(r=>"<tr>"+r.map((v,j)=>`<td${j&&v===best[j]?' style="font-weight:700;background:rgba(224,165,38,.35)"':""}>${fmt[j](v)}</td>`).join("")+"</tr>").join("")}
+const PT=[5,2,7,null,3,1,null,4];
+function xlat(){
+ const size=+document.getElementById("psz").value,raw=parseInt(document.getElementById("va").value),va=isNaN(raw)||raw<0?0:raw;
+ const pn=Math.floor(va/size),off=va%size,f=PT[pn];let msg;
+ if(pn>=PT.length)msg=`Address ${va} is outside the ${PT.length}-page address space (segmentation fault).`;
+ else if(f===null)msg=`Page ${pn}, offset ${off}: the page is not in memory. A page fault loads it from disk, then the access is retried.`;
+ else msg=`Page ${pn}, offset ${off}, frame ${f}: physical address ${f*size+off}.`;
+ document.getElementById("xr").textContent=msg;xmap(pn);
+ document.getElementById("pt").innerHTML="<tr><th>Page</th><th>Valid</th><th>Frame</th></tr>"+PT.map((x,i)=>`<tr${i===pn?' style="background:var(--c2);color:#2b1a0d"':""}><td>${i}</td><td>${x===null?0:1}</td><td>${x===null?"-":x}</td></tr>`).join("")}
+function race(lock,n=1000,T=2){
+ let c=0,reg=Array(T).fill(0),pc=Array(T).fill(0),left=Array(T).fill(n),holder=-1;
+ while(left.some(x=>x>0)){
+  const act=[...Array(T).keys()].filter(i=>left[i]>0&&(!lock||holder<0||holder===i)),i=act[Math.floor(Math.random()*act.length)];
+  if(lock&&holder<0&&pc[i]===0)holder=i;
+  if(pc[i]===0)reg[i]=c;else if(pc[i]===1)reg[i]++;else{c=reg[i];left[i]--;if(lock)holder=-1}
+  pc[i]=(pc[i]+1)%3}
+ return c}
+function raceRun(){
+ const tr=Array.from({length:10},()=>[race(false),race(true)]);
+ const W=640,H=260,L=48,B=30,T=12,gw=(W-L)/10,bw=gw*0.38,Y=v=>H-B-(H-B-T)*v/2000;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Final counter value over 10 trials with and without a mutex">`;
+ for(let v=0;v<=2000;v+=500)s+=`<line class="gl" x1="${L}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="t" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+ tr.forEach((d,i)=>{["var(--c5)","var(--c3)"].forEach((c,j)=>{s+=`<rect x="${L+i*gw+gw*0.1+j*bw*1.05}" y="${Y(d[j])}" width="${bw}" height="${H-B-Y(d[j])}" rx="2" style="fill:${c}"/>`});
+  s+=`<text class="t" x="${L+i*gw+gw/2}" y="${H-12}" text-anchor="middle">${i+1}</text>`});
+ s+=`<text class="t" x="${(L+W)/2}" y="${H-1}" text-anchor="middle">trial</text>`;
+ document.getElementById("rc").innerHTML=s+"</svg>";
+ const avg=tr.reduce((a,d)=>a+d[0],0)/10,lost=2000-avg;
+ document.getElementById("rs").textContent=`Average without a lock: ${avg.toFixed(0)} of 2000 (${lost.toFixed(0)} updates lost). With a mutex: always 2000.`}
+document.getElementById("refs").oninput=()=>{paging();pfChart();cumChart()};
+document.getElementById("fr").onchange=()=>{paging();cumChart()};
+document.getElementById("va").oninput=xlat;document.getElementById("psz").onchange=xlat;
+document.getElementById("rr").onclick=raceRun;
+const $=id=>document.getElementById(id);
+function lc(id,xs,series,xl,o={}){
+ const W=640,H=240,L=46,B=34,T=12,x0=xs[0],x1=xs[xs.length-1],mx=o.ymax||Math.max(1e-9,...series.flatMap(s=>s.ys))*1.1,f=o.fmt||(v=>+v.toFixed(1));
+ const X=v=>L+(W-L-14)*(x1===x0?0:(v-x0)/(x1-x0)),Y=v=>H-B-(H-B-T)*v/mx;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.label||"Line chart"}">`;
+ for(let k=0;k<=4;k++){const v=mx*k/4;s+=`<line class="gl" x1="${L}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="t" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${f(v)}</text>`}
+ const tick=Math.max(1,Math.ceil(xs.length/10));
+ xs.forEach((v,i)=>{if(i%tick===0)s+=`<text class="t" x="${X(v)}" y="${H-16}" text-anchor="middle">${o.xf?o.xf(v):v}</text>`});
+ s+=`<text class="t" x="${(L+W)/2}" y="${H-2}" text-anchor="middle">${xl}</text>`;
+ if(o.mark!==undefined)s+=`<line x1="${X(o.mark)}" x2="${X(o.mark)}" y1="${T}" y2="${H-B}" stroke-dasharray="4 4" style="stroke:var(--ink)"/>`;
+ series.forEach(se=>{s+=`<polyline fill="none" stroke-width="2.5" stroke-linejoin="round" style="stroke:${se.c}" points="${xs.map((v,i)=>X(v)+","+Y(se.ys[i])).join(" ")}"/>`;
+  if(xs.length<=12)s+=xs.map((v,i)=>`<circle cx="${X(v)}" cy="${Y(se.ys[i])}" r="3.5" style="fill:${se.c}"/>`).join("")});
+ $(id).innerHTML=s+"</svg>"}
+function qSweep(){
+ const qs=[1,2,3,4,5,6,7,8,9,10],w=[],rs=[],cs=[];
+ qs.forEach(q=>{QT=q;const r=sched("RR");let a=0,b=0;P.forEach(p=>{a+=r.fin[p.id]-p.a-p.b;b+=r.first[p.id]-p.a});w.push(a/P.length);rs.push(b/P.length);cs.push(r.g.length-1)});QT=2;
+ lc("qw",qs,[{ys:w,c:"var(--c1)"},{ys:rs,c:"var(--c3)"}],"time quantum",{label:"Average waiting and response time versus quantum"});
+ lc("qc",qs,[{ys:cs,c:"var(--c4)"}],"time quantum",{fmt:v=>Math.round(v),label:"Context switches versus quantum"})}
+function tlb(){
+ const h=+$("th").value,t=+$("tt").value||0,m=Math.max(1,+$("tm").value||1),eat=x=>x*(t+m)+(1-x)*(t+2*m),e=eat(h/100);
+ $("tho").textContent=h+"%";
+ $("te").textContent=`Effective access time: ${e.toFixed(1)} ns, ${((e/m-1)*100).toFixed(0)}% slower than a single ${m} ns memory access.`;
+ const xs=[50,55,60,65,70,75,80,85,90,95,100];
+ lc("tch",xs,[{ys:xs.map(x=>eat(x/100)),c:"var(--c1)"}],"TLB hit ratio (%)",{mark:h,fmt:v=>Math.round(v),label:"Effective access time in nanoseconds versus TLB hit ratio"})}
+function pcRun(){
+ const N=+$("bs").value,pp=+$("pp").value,cp=+$("cp").value;let buf=0,made=0,used=0,full=0,empty=0;const xs=[],ys=[];
+ for(let i=1;i<=60;i++){
+  if(Math.random()<pp){if(buf<N){buf++;made++}else full++}
+  if(Math.random()<cp){if(buf>0){buf--;used++}else empty++}
+  xs.push(i);ys.push(buf)}
+ lc("pcc",xs,[{ys,c:"var(--c3)"}],"time step",{ymax:N,label:"Items in the buffer over time"});
+ $("pcs").innerHTML=[[made,"items produced"],[used,"items consumed"],[full,"producer waited (buffer full)"],[empty,"consumer waited (buffer empty)"]].map(([v,k])=>`<div><b>${v}</b><small>${k}</small></div>`).join("")}
+function dine(strategy,steps=300){
+ let owner=Array(5).fill(null),st=Array(5).fill(0),meals=0,h=[],dead=null;
+ const ord=i=>{const l=i,r=(i+1)%5;return strategy==="naive"?[l,r]:[Math.min(l,r),Math.max(l,r)]};
+ for(let t=0;t<steps;t++){if(dead===null&&st.every(s=>s===1))dead=t;
+  const i=Math.floor(Math.random()*5),[a,b]=ord(i);
+  if(st[i]===0&&owner[a]===null){owner[a]=i;st[i]=1}
+  else if(st[i]===1&&owner[b]===null){owner[b]=i;st[i]=2}
+  else if(st[i]===2){owner[a]=owner[b]=null;st[i]=0;meals++}
+  h.push(meals)}
+ return{h,dead,st,meals}}
+function dineRun(){
+ const a=dine("naive"),b=dine("ordered"),xs=Array.from({length:300},(_,i)=>i+1);
+ lc("dch",xs,[{ys:a.h,c:"var(--c5)"},{ys:b.h,c:"var(--c3)"}],"time step",{fmt:v=>Math.round(v),label:"Meals eaten over time"});
+ const bg=["var(--line)","var(--c2)","var(--c3)"],fg=["var(--ink)","#2b1a0d","#fff"];
+ const ring=r=>r.st.map((s,i)=>`<div style="background:${bg[s]};color:${fg[s]};width:56px;padding:10px 0;text-align:center;border-radius:8px;font-weight:600">P${i}</div>`).join("");
+ const msg=r=>r.dead!==null?`Deadlocked at step ${r.dead} after ${r.h[r.dead]} meals.`:`No deadlock, ${r.meals} meals.`;
+ $("dres").innerHTML=`<div><h3 style="font-size:18px;margin-bottom:6px">Naive: left fork first</h3><p style="margin:0 0 8px;color:var(--mute)">${msg(a)}</p><div style="display:flex;gap:6px;flex-wrap:wrap">${ring(a)}</div></div><div><h3 style="font-size:18px;margin-bottom:6px">Ordered: lower fork first</h3><p style="margin:0 0 8px;color:var(--mute)">${msg(b)}</p><div style="display:flex;gap:6px;flex-wrap:wrap">${ring(b)}</div></div>`;
+ let dn=0,dst=[],R=200;for(let k=0;k<R;k++){const x=dine("naive");if(x.dead!==null){dn++;dst.push(x.dead)}}
+ let dord=0;for(let k=0;k<R;k++)if(dine("ordered").dead!==null)dord++;
+ dst.sort((p,q)=>p-q);
+ $("dsum").textContent=`Over ${R} runs each: naive deadlocked ${dn} times${dn?` (median at step ${dst[dst.length>>1]})`:""}; ordered forks deadlocked ${dord} times.`}
+function utilChart(){
+ const xs=[1,2,3,4,5,6,7,8,9,10];
+ lc("uch",xs,[[.2,"var(--c3)"],[.5,"var(--c2)"],[.8,"var(--c5)"]].map(([p,c])=>({ys:xs.map(n=>100*(1-Math.pow(p,n))),c})),"processes in memory",{ymax:100,fmt:v=>Math.round(v)+"%",label:"CPU utilisation versus processes in memory"})}
+function radar(){
+ const al=["FCFS","SJF","Priority","RR","MLFQ"],cols=["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)"],ax=["Waiting","Turnaround","Response","Few switches"],n=P.length;
+ const m=al.map(a=>{const r=sched(a);let w=0,t=0,s=0;P.forEach(p=>{const T=r.fin[p.id]-p.a;w+=T-p.b;t+=T;s+=r.first[p.id]-p.a});return[w/n,t/n,s/n,r.g.length-1]});
+ const mn=ax.map((_,j)=>Math.min(...m.map(r=>r[j]))),sc=m.map(r=>r.map((v,j)=>(mn[j]+1)/(v+1)));
+ const cx=320,cy=150,R=108,ang=j=>-Math.PI/2+j*2*Math.PI/ax.length,pt=(j,k)=>[cx+R*k*Math.cos(ang(j)),cy+R*k*Math.sin(ang(j))];
+ let s=`<svg class="chart" viewBox="0 0 640 310" role="img" aria-label="Radar chart comparing the five schedulers on four measures">`;
+ [.25,.5,.75,1].forEach(k=>{s+=`<polygon class="gl" fill="none" points="${ax.map((_,j)=>pt(j,k).join(",")).join(" ")}"/>`});
+ ax.forEach((a,j)=>{const[x,y]=pt(j,1),[lx,ly]=pt(j,1.2);s+=`<line class="gl" x1="${cx}" y1="${cy}" x2="${x}" y2="${y}"/><text class="t" x="${lx}" y="${ly+4}" text-anchor="middle">${a}</text>`});
+ sc.forEach((r,i)=>{s+=`<polygon points="${r.map((v,j)=>pt(j,v).join(",")).join(" ")}" stroke-width="2" style="fill:${cols[i]};fill-opacity:.12;stroke:${cols[i]}"/>`});
+ document.getElementById("rad").innerHTML=s+"</svg>"}
+function simSnap(refs,F,pl){
+ let mem=[],last={},sn=[],fl=[];
+ refs.forEach((r,i)=>{const f=!mem.includes(r);
+  if(f){if(mem.length===F){let ev;
+   if(pl==="FIFO")ev=mem.shift();
+   else{if(pl==="LRU")ev=mem.reduce((a,b)=>last[b]<last[a]?b:a);
+    else{const nx=x=>{const j=refs.indexOf(x,i+1);return j<0?Infinity:j};ev=mem.reduce((a,b)=>nx(b)>nx(a)?b:a)}
+    mem.splice(mem.indexOf(ev),1)}}
+   mem.push(r)}
+  last[r]=i;sn.push(mem.slice());fl.push(f)});
+ return{sn,fl}}
+function resid(){
+ const refs=getRefs(),F=+document.getElementById("fr").value,{sn,fl}=simSnap(refs,F,pol),pages=[...new Set(refs)].sort((a,b)=>a-b),n=refs.length;
+ if(!n){document.getElementById("res").innerHTML="";return}
+ const W=640,L=44,T=26,rh=24,cw=Math.min(30,(W-L-10)/n),H=T+pages.length*rh+8;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pages resident in memory at each reference, ${pol} with ${F} frames">`;
+ refs.forEach((r,i)=>{s+=`<text class="t" x="${L+i*cw+cw/2}" y="16" text-anchor="middle">${r}</text>`});
+ pages.forEach((p,j)=>{const y=T+j*rh;s+=`<text class="t" x="${L-8}" y="${y+16}" text-anchor="end">page ${p}</text>`;
+  sn.forEach((m,i)=>{if(m.includes(p)){const f=fl[i]&&refs[i]===p;s+=`<rect x="${L+i*cw+1}" y="${y+2}" width="${cw-2}" height="${rh-4}" rx="3" style="fill:${f?"var(--c5)":"var(--c3)"}"/>`}})});
+ document.getElementById("res").innerHTML=s+"</svg>"}
+function hm(){
+ const refs=getRefs(),n=Math.max(refs.length,1),ks=[1,2,3,4,5,6,7,8];
+ document.getElementById("hm").innerHTML="<tr><th>Frames</th>"+ks.map(k=>`<th>${k}</th>`).join("")+"</tr>"+["FIFO","LRU","OPT"].map(p=>`<tr><td>${p}</td>`+ks.map(k=>{const f=faultSeq(refs,k,p).slice(-1)[0]||0,r=f/n;return`<td style="text-align:center;background:rgba(217,83,79,${(r*.6).toFixed(2)})">${Math.round(r*100)}%</td>`}).join("")+"</tr>").join("")}
+function xmap(pn){
+ const W=640,H=8*30+34;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mapping from virtual pages to physical frames"><text class="t" x="100" y="14" text-anchor="middle">Pages (virtual)</text><text class="t" x="540" y="14" text-anchor="middle">Frames (physical)</text>`;
+ PT.forEach((f,i)=>{if(f!==null){const hi=i===pn;s+=`<line x1="150" y1="${24+i*30+12}" x2="490" y2="${24+f*30+12}" stroke-width="${hi?4:2}" style="stroke:${hi?"var(--c2)":"var(--line)"}"/>`}});
+ PT.forEach((f,i)=>{const y=24+i*30,hi=i===pn;s+=`<rect class="bx" x="50" y="${y}" width="100" height="24" rx="6" style="fill:${hi?(f===null?"var(--c5)":"var(--c2)"):"var(--card)"}"/><text class="bn" style="font-size:13px" x="100" y="${y+17}">Page ${i}${f===null?" (disk)":""}</text>`});
+ for(let k=0;k<8;k++){const y=24+k*30,hi=PT[pn]===k;s+=`<rect class="bx" x="490" y="${y}" width="100" height="24" rx="6" style="fill:${hi?"var(--c2)":"var(--card)"}"/><text class="bn" style="font-size:13px" x="540" y="${y+17}">Frame ${k}${PT.includes(k)?"":" (free)"}</text>`}
+ document.getElementById("xmap").innerHTML=s+"</svg>"}
+function rqChart(){
+ const r=sched(cur),W=640,H=180,L=40,B=30,T=10,sc=(W-L-10)/r.end,mx=Math.max(1,P.length-1),Y=v=>H-B-(H-B-T)*v/mx;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Number of processes waiting in the ready queue over time">`,tot=0,big=0;
+ for(let v=0;v<=mx;v++)s+=`<line class="gl" x1="${L}" x2="${W}" y1="${Y(v)}" y2="${Y(v)}"/><text class="t" x="${L-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+ const step=Math.max(1,Math.ceil(r.end/14));
+ for(let t=0;t<r.end;t++){
+  const run=r.g.find(x=>x.s<=t&&t<x.e),n=P.filter(p=>p.a<=t&&r.fin[p.id]>t&&(!run||run.id!==p.id)).length;tot+=n;big=Math.max(big,n);
+  s+=`<rect x="${L+t*sc+1}" y="${Y(n)}" width="${Math.max(sc-2,1)}" height="${H-B-Y(n)}" style="fill:var(--c2)"/>`;
+  if(t%step===0)s+=`<text class="t" x="${L+t*sc+sc/2}" y="${H-14}" text-anchor="middle">${t}</text>`}
+ s+=`<text class="t" x="${(L+W)/2}" y="${H-1}" text-anchor="middle">time</text>`;
+ document.getElementById("rqc").innerHTML=s+"</svg>";
+ document.getElementById("rqs").textContent=`Longest queue: ${big}. Average queue length: ${(tot/r.end).toFixed(2)}.`}
+const BLK=[100,500,200,300,600],REQ=[212,417,112,426];let ms="first";
+function allocSim(st){
+ const rem=BLK.slice(),seg=BLK.map(()=>[]),fail=[];
+ REQ.forEach((q,i)=>{const c=rem.map((v,k)=>[v,k]).filter(([v])=>v>=q);
+  if(!c.length){fail.push(i);return}
+  const k=(st==="first"?c[0]:st==="best"?c.reduce((a,b)=>b[0]<a[0]?b:a):c.reduce((a,b)=>b[0]>a[0]?b:a))[1];
+  rem[k]-=q;seg[k].push([i,q])});
+ return{rem,seg,fail}}
+function allocView(){
+ const {rem,seg,fail}=allocSim(ms),bg=["var(--c1)","var(--c2)","var(--c3)","var(--c4)"],fg=["#fff","#2b1a0d","#fff","#fff"];
+ document.getElementById("mach").innerHTML=BLK.map((b,k)=>{
+  const used=seg[k].map(([i,q])=>`<div style="flex:0 0 ${q/b*100}%;background:${bg[i]};color:${fg[i]};display:flex;align-items:center;justify-content:center;font:600 12px sans-serif;overflow:hidden;white-space:nowrap">R${i+1}</div>`).join("");
+  const free=rem[k]?`<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--mute);font-size:12px;border:1px dashed var(--line);border-radius:0 6px 6px 0;overflow:hidden;white-space:nowrap">${rem[k]} free</div>`:"";
+  return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><span style="width:64px;font-size:14px;color:var(--mute)">${b} KB</span><div style="width:${b/6}%;min-width:70px;display:flex;height:34px;border-radius:6px;overflow:hidden">${used}${free}</div></div>`}).join("");
+ const left=rem.reduce((a,b)=>a+b,0);
+ document.getElementById("mast").innerHTML=[[REQ.length-fail.length+" of "+REQ.length,"requests placed"],[fail.length?fail.map(i=>"R"+(i+1)).join(", "):"None","could not be placed"],[left+" KB","free in total"],[Math.max(...rem)+" KB","largest free chunk"]].map(([v,k])=>`<div><b>${v}</b><small>${k}</small></div>`).join("");
+ document.getElementById("manote").textContent={first:"First fit takes the first block that is big enough. It is fast, but it leaves R4 (426 KB) with nowhere to go.",best:"Best fit takes the smallest block that is big enough. Every request is placed here, at the cost of many small leftover slivers.",worst:"Worst fit takes the largest block. It keeps leftovers large, but here it also strands R4."}[ms]}
+function psChart(){
+ const S=Math.max(1,+document.getElementById("ps").value||1)*1024,e=Math.max(1,+document.getElementById("pe").value||1),xs=[8,9,10,11,12,13,14,15,16];
+ const tb=xs.map(k=>S*e/2**k),fr=xs.map(k=>2**k/2),tot=tb.map((v,i)=>v+fr[i]),opt=Math.sqrt(2*S*e);
+ const fb=v=>v>=1048576?+(v/1048576).toFixed(1)+" MB":v>=1024?+(v/1024).toFixed(1)+" KB":Math.round(v)+" B";
+ lc("psc",xs,[{ys:tb,c:"var(--c1)"},{ys:fr,c:"var(--c5)"},{ys:tot,c:"var(--c4)"}],"page size",{xf:v=>fb(2**v),fmt:fb,mark:Math.log2(opt),ymax:Math.max(...fr)*2,label:"Page table size, internal fragmentation and total overhead versus page size"});
+ document.getElementById("pso").textContent=`Lowest total overhead at about ${fb(opt)} per page (dashed line). That is ${fb(2*Math.sqrt(S*e/2))} of overhead per process.`}
+function hier(){
+ const L=[["Register",.3],["L1 cache",1],["L2 cache",4],["Main memory",100],["SSD",1e5],["Hard disk",1e7]],W=640,x0=110,rh=36,H=L.length*rh+10,sc=(W-x0-90)/8.2;
+ const fmt=v=>v>=1e6?(v/1e6)+" ms":v>=1e3?(v/1e3)+" \u00b5s":v+" ns";
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Typical access time of each level of the memory hierarchy on a log scale">`;
+ L.forEach(([n,v],i)=>{const y=6+i*rh,w=(Math.log10(v)+1)*sc;
+  s+=`<text class="t" x="${x0-8}" y="${y+19}" text-anchor="end">${n}</text><rect x="${x0}" y="${y}" width="${w}" height="26" rx="4" style="fill:${i<3?"var(--c3)":i<4?"var(--c2)":"var(--c5)"}"/><text class="t" x="${x0+w+8}" y="${y+19}">${fmt(v)}</text>`});
+ document.getElementById("hch").innerHTML=s+"</svg>"}
+function pct(a,p){const s=a.slice().sort((x,y)=>x-y);return s[Math.min(s.length-1,Math.floor(p*s.length))]}
+function genW(){
+ const n=4+Math.floor(Math.random()*2),a=[];let S=0,at=0;
+ for(let i=0;i<n;i++){const b=2+Math.floor(Math.random()*8);at=i===0?0:at+Math.floor(Math.random()*(S-at+1));a.push({id:"P"+(i+1),a:at,b,p:1+Math.floor(Math.random()*4)});S+=b}
+ return a}
+function mcRun(){
+ const N=+$("mn").value,al=["FCFS","SJF","Priority","RR","MLFQ"],cols=["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)"];
+ const saved=P.map(p=>({...p})),res=al.map(()=>({w:[],r:[]})),wins=al.map(()=>0);
+ for(let k=0;k<N;k++){P.length=0;genW().forEach(x=>P.push(x));
+  const ws=al.map((a,i)=>{const r=sched(a);let w=0,rs=0;P.forEach(p=>{w+=r.fin[p.id]-p.a-p.b;rs+=r.first[p.id]-p.a});res[i].w.push(w/P.length);res[i].r.push(rs/P.length);return w/P.length});
+  const mn=Math.min(...ws);ws.forEach((v,i)=>{if(v===mn)wins[i]++})}
+ P.length=0;saved.forEach(p=>P.push(p));
+ const mean=a=>a.reduce((x,y)=>x+y,0)/a.length,W=640,L=80,rh=44,H=al.length*rh+30,mx=Math.max(...res.map(r=>pct(r.w,.9)))*1.08;
+ const X=v=>L+(W-L-20)*v/mx;
+ let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Mean and spread of average waiting time for each scheduler across random workloads">`;
+ for(let v=0;v<=mx;v+=Math.max(1,Math.round(mx/6)))s+=`<line class="gl" x1="${X(v)}" x2="${X(v)}" y1="4" y2="${H-24}"/><text class="t" x="${X(v)}" y="${H-8}" text-anchor="middle">${v}</text>`;
+ al.forEach((a,i)=>{const y=8+i*rh,m=mean(res[i].w);
+  s+=`<text class="t" x="${L-8}" y="${y+20}" text-anchor="end" style="font-weight:600">${a}</text><rect x="${L}" y="${y+4}" width="${X(m)-L}" height="24" rx="3" style="fill:${cols[i]}"/>`+
+  `<line x1="${X(pct(res[i].w,.1))}" x2="${X(pct(res[i].w,.9))}" y1="${y+16}" y2="${y+16}" stroke-width="2" style="stroke:var(--ink)"/><line x1="${X(pct(res[i].w,.9))}" x2="${X(pct(res[i].w,.9))}" y1="${y+8}" y2="${y+24}" stroke-width="2" style="stroke:var(--ink)"/><line x1="${X(pct(res[i].w,.1))}" x2="${X(pct(res[i].w,.1))}" y1="${y+8}" y2="${y+24}" stroke-width="2" style="stroke:var(--ink)"/>`});
+ $("mch").innerHTML=s+"</svg>";
+ $("mtb").innerHTML="<tr><th>Algorithm</th><th>Mean waiting</th><th>Median</th><th>90th percentile</th><th>Mean response</th><th>Lowest waiting in</th></tr>"+al.map((a,i)=>`<tr><td>${a}</td><td>${mean(res[i].w).toFixed(2)}</td><td>${pct(res[i].w,.5).toFixed(2)}</td><td>${pct(res[i].w,.9).toFixed(2)}</td><td>${mean(res[i].r).toFixed(2)}</td><td>${(100*wins[i]/N).toFixed(0)}% of workloads</td></tr>`).join("")}
+let dk="FCFS";
+function dsched(algo,reqs,head,size=200){
+ const up=reqs.filter(r=>r>head).sort((a,b)=>a-b),lo=reqs.filter(r=>r<=head).sort((a,b)=>b-a);let order;
+ if(algo==="FCFS")order=reqs.slice();
+ else if(algo==="SSTF"){const left=reqs.slice();let pos=head;order=[];while(left.length){let bi=0;left.forEach((r,i)=>{if(Math.abs(r-pos)<Math.abs(left[bi]-pos))bi=i});pos=left.splice(bi,1)[0];order.push(pos)}}
+ else if(algo==="SCAN")order=[...lo,...(lo.length&&up.length?[0]:[]),...up];
+ else order=[...up,...(lo.length?[size-1,0,...lo.slice().reverse()]:[])];
+ const path=[head,...order];let total=0;for(let i=1;i<path.length;i++)total+=Math.abs(path[i]-path[i-1]);
+ return{path,total}}
+function diskRun(){
+ const reqs=$("dq").value.split(/[\s,]+/).filter(Boolean).map(Number).filter(x=>!isNaN(x)&&x>=0&&x<200),head=Math.min(199,Math.max(0,parseInt($("dh").value)||0));
+ if(!reqs.length){$("dkc").innerHTML="";$("dko").textContent="Enter at least one request between 0 and 199.";$("dks").innerHTML="";return}
+ const algos=["FCFS","SSTF","SCAN","C-SCAN"],tot=algos.map(a=>dsched(a,reqs,head).total),r=dsched(dk,reqs,head);
+ lc("dkc",r.path.map((_,i)=>i),[{ys:r.path,c:"var(--c1)"}],"step",{ymax:199,fmt:v=>Math.round(v),label:"Disk head position at each step"});
+ $("dko").textContent="Service order: "+r.path.join(" \u2192 ");
+ $("dks").innerHTML=algos.map((a,i)=>`<div><b>${tot[i]}</b><small>${a} total head movement${a===dk?" (shown)":""}</small></div>`).join("")}
+function amChart(){
+ const xs=[0,1,2,3,4,5,6],am=(p,n)=>1/((1-p)+p/n);
+ lc("amc",xs,[[.5,"var(--c5)"],[.9,"var(--c2)"],[.95,"var(--c1)"],[.99,"var(--c3)"]].map(([p,c])=>({ys:xs.map(k=>am(p,2**k)),c})),"cores",{xf:v=>2**v,fmt:v=>Math.round(v)+"x",label:"Speedup versus number of cores for four parallel fractions"})}
+function ptlChart(){
+ const xs=[2,3,4,5,6,7,8,9,10,11,12],flat=4096,two=k=>4+Math.min(1024,Math.ceil(2**k/4))*4;
+ const fb=v=>v>=1024?+(v/1024).toFixed(1)+" MB":Math.round(v)+" KB";
+ lc("ptlc",xs,[{ys:xs.map(()=>flat),c:"var(--c5)"},{ys:xs.map(two),c:"var(--c3)"}],"mapped memory",{xf:v=>2**v>=1024?(2**v/1024)+" GB":2**v+" MB",fmt:fb,ymax:4400,label:"Page table memory for flat and two-level tables versus mapped memory"})}
+const RC=["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","#7a5a40","#4a8a3a","#c0568a"],RF=["#fff","#2b1a0d","#fff","#fff","#fff","#fff","#fff","#fff"];
+const chip=i=>`<span class="chip" style="background:${RC[i]};color:${RF[i]}">P${i+1}</span>`;
+const LEX={classic:[[0,5,2],[1,3,1],[2,8,3],[3,6,2]],convoy:[[0,24,1],[1,3,1],[2,3,1]],starve:[[0,3,1],[0,3,5],[3,3,1],[6,3,1]],idle:[[0,2,1],[6,3,1],[7,2,1]],fair:[[0,10,1],[0,10,1],[0,10,1]]};
+let LP=LEX.classic.map(([a,b,p])=>({a,b,p})),LS=null,LF=null,LE=[],lt=0,lrOn=false,lrTimer=null;
+const cmpA=(x,y)=>{for(let i=0;i<x.length;i++){if(x[i]!==y[i])return x[i]<y[i]?-1:1}return 0};
+function simTicks(pr,algo,Q,force){
+ const n=pr.length,rem=pr.map(p=>p.b),first=Array(n).fill(null),fin=Array(n).fill(null),frames=[],QS=[2,4,8],ml=[[],[],[]],lvl=Array(n).fill(0);
+ let q=[],cur=-1,slice=0,pend=-1,t=0,done=0;const pre=algo==="SRTF"||algo==="PRIO-P";
+ const byRem=i=>[rem[i],pr[i].a],byPri=i=>[pr[i].p,pr[i].a],key={FCFS:i=>[pr[i].a],SJF:byRem,SRTF:byRem,PRIO:byPri,"PRIO-P":byPri}[algo];
+ while(done<n&&t<10000){
+  pr.forEach((p,i)=>{if(p.a===t){if(algo==="RR")q.push(i);else if(algo==="MLFQ")ml[0].push(i)}});
+  if(pend>=0){if(algo==="RR")q.push(pend);else ml[lvl[pend]].push(pend);pend=-1}
+  const ready=[];pr.forEach((p,i)=>{if(p.a<=t&&rem[i]>0)ready.push(i)});
+  let run=-1;
+  if(force&&t===force.t&&rem[force.i]>0&&pr[force.i].a<=t){run=force.i;if(cur!==run){if(algo==="RR"){if(cur>=0)q.push(cur);const k=q.indexOf(run);if(k>=0)q.splice(k,1)}else if(algo==="MLFQ"){if(cur>=0)ml[lvl[cur]].push(cur);ml.forEach(L=>{const k=L.indexOf(run);if(k>=0)L.splice(k,1)})}slice=0}}
+  else if(algo==="RR"){if(cur>=0)run=cur;else if(q.length){run=q.shift();slice=0}}
+  else if(algo==="MLFQ"){if(cur>=0)run=cur;else{const l=ml.findIndex(x=>x.length);if(l>=0){run=ml[l].shift();slice=0}}}
+  else if(cur>=0&&!pre)run=cur;
+  else if(ready.length){run=ready.reduce((a,b)=>cmpA(key(b),key(a))<0?b:a);if(cur>=0&&pre&&ready.includes(cur)&&cmpA(key(cur),key(run))===0)run=cur}
+  const waiting=algo==="RR"?q.slice():algo==="MLFQ"?[].concat(...ml):ready.filter(i=>i!==run).sort((a,b)=>cmpA(key(a),key(b))||a-b);
+  frames.push({t,run,ready:waiting,rem:rem.slice(),level:run>=0?lvl[run]:0});
+  cur=run;
+  if(run>=0){if(first[run]===null)first[run]=t;rem[run]--;slice++;
+   if(rem[run]===0){fin[run]=t+1;done++;cur=-1}
+   else if(algo==="RR"&&slice>=Q){pend=run;cur=-1}
+   else if(algo==="MLFQ"&&slice>=QS[lvl[run]]){lvl[run]=Math.min(lvl[run]+1,2);pend=run;cur=-1}}
+  t++}
+ frames.push({t,run:-1,ready:[],rem:rem.slice(),level:0});
+ return{frames,first,fin,end:t}}
+function lrStop(){lrOn=false;clearTimeout(lrTimer);lrTimer=null}
+function lrTable(){
+ $("lrt").innerHTML="<tr><th>Process</th><th>Arrival</th><th>Burst</th><th>Priority</th></tr>"+LP.map((p,i)=>`<tr><td>${chip(i)}</td>${["a","b","p"].map(k=>`<td><input type="number" min="${k==="b"?1:0}" max="${k==="b"?30:k==="a"?40:9}" value="${p[k]}" data-i="${i}" data-k="${k}" aria-label="${k==="a"?"Arrival":k==="b"?"Burst":"Priority"} of P${i+1}" style="width:80px"></td>`).join("")}</tr>`).join("")}
+function lrBuild(){
+ lrStop();const algo=$("lra").value,Q=Math.max(1,+$("lrq").value||2);
+ LS=simTicks(LP.map(p=>({...p})),algo,Q);LF=LS.frames;lt=0;$("lrk").max=LS.end;$("lrk").value=0;LE=[];
+ for(let t=0;t<=LS.end;t++){const L=[];
+  LP.forEach((p,i)=>{if(p.a===t)L.push(`P${i+1} arrives`)});
+  if(t>0)LP.forEach((p,i)=>{if(LS.fin[i]===t)L.push(`P${i+1} finishes`)});
+  if(t<LS.end){const prev=t>0?LF[t-1].run:-1,c=LF[t].run;
+   if(c!==prev){if(prev>=0&&LF[t].rem[prev]>0)L.push(`P${prev+1} is preempted`);L.push(c>=0?`CPU dispatches P${c+1}`:"CPU goes idle")}}
+  else L.push("all processes have finished");
+  LE.push(L)}
+ lrRender();if(typeof ttBuild==="function")ttBuild()}
+function lrRender(){
+ if(!LF)return;const f=LF[lt],end=LS.end,n=LP.length,all=LP.map((_,i)=>i);
+ const cpu=f.run>=0?`${chip(f.run)} <span style="color:var(--mute)">${f.rem[f.run]} of ${LP[f.run].b} ticks left${$("lra").value==="MLFQ"?", queue level "+(f.level+1):""}</span>`:`<span class="big">${lt<end?"Idle":"All done"}</span>`;
+ const chips=a=>a.length?`<div class="chips">${a.map(chip).join("")}</div>`:`<span style="color:var(--mute)">none</span>`;
+ const box=(h,c)=>`<div class="lrc"><small>${h}</small>${c}</div>`;
+ let busy=0,sw=0;for(let k=0;k<lt;k++){if(LF[k].run>=0)busy++;if(k>0&&LF[k].run>=0&&LF[k-1].run>=0&&LF[k].run!==LF[k-1].run)sw++}
+ const W=640,Lm=10,cw=(W-2*Lm)/end,H=66,step=Math.max(1,Math.ceil(end/16));
+ let g=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gantt chart up to time ${lt}"><rect x="${Lm}" y="6" width="${W-2*Lm}" height="34" rx="4" fill="none" class="gl"/>`;
+ for(let k=0;k<lt;k++){const r=LF[k].run;if(r>=0)g+=`<rect x="${Lm+k*cw}" y="6" width="${cw}" height="34" style="fill:${RC[r]};stroke:var(--card)"/>`+(cw>=18?`<text x="${Lm+k*cw+cw/2}" y="28" text-anchor="middle" style="fill:${RF[r]};font:600 12px sans-serif">P${r+1}</text>`:"")}
+ for(let k=0;k<=end;k+=step)g+=`<text class="t" x="${Lm+k*cw}" y="58" text-anchor="middle">${k}</text>`;
+ g+=`<line x1="${Lm+lt*cw}" x2="${Lm+lt*cw}" y1="2" y2="44" stroke-width="3" style="stroke:var(--c5)"/></svg>`;
+ const bars=LP.map((p,i)=>{const d=p.b-f.rem[i],st=f.rem[i]===0?`done at ${LS.fin[i]}`:f.run===i?"running":p.a<=lt?"waiting":`arrives at ${p.a}`;
+  return `<div style="display:flex;align-items:center;gap:10px;margin:6px 0">${chip(i)}<div style="flex:1;height:14px;border-radius:7px;background:var(--line);overflow:hidden"><div style="width:${100*d/p.b}%;height:100%;background:${RC[i]}"></div></div><span style="width:120px;font-size:14px;color:var(--mute)">${st}</span></div>`}).join("");
+ $("lrview").innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px">`+box("Clock",`<span class="big">t = ${lt}</span>`)+box("CPU",cpu)+box("Ready queue (next first)",chips(f.ready))+box("Not arrived yet",chips(all.filter(i=>LP[i].a>lt)))+box("Finished",chips(all.filter(i=>f.rem[i]===0)))+`</div><div style="margin-top:12px">${g}</div><div style="margin-top:6px">${bars}</div><p style="margin:8px 0 0;font-weight:500">CPU busy ${lt?(100*busy/lt).toFixed(0):0}% so far, ${sw} context switch${sw===1?"":"es"}.</p>`;
+ const lines=[];for(let t=lt;t>=0&&lines.length<8;t--)for(let j=LE[t].length-1;j>=0&&lines.length<8;j--)lines.push(`<div class="logl"><b>t=${t}</b> ${LE[t][j]}</div>`);
+ $("lrlog").innerHTML=lines.join("")||"<span style=\"color:var(--mute)\">Nothing has happened yet.</span>";
+ if(lt===end){let w=0,tt=0,rs=0;
+  $("lrm").innerHTML="<tr><th>Process</th><th>Completion</th><th>Turnaround</th><th>Waiting</th><th>Response</th></tr>"+LP.map((p,i)=>{const T=LS.fin[i]-p.a,W2=T-p.b,R=LS.first[i]-p.a;w+=W2;tt+=T;rs+=R;return`<tr><td>P${i+1}</td><td>${LS.fin[i]}</td><td>${T}</td><td>${W2}</td><td>${R}</td></tr>`}).join("")+`<tr style="font-weight:700"><td>Average</td><td></td><td>${(tt/n).toFixed(2)}</td><td>${(w/n).toFixed(2)}</td><td>${(rs/n).toFixed(2)}</td></tr>`}
+ else $("lrm").innerHTML="<tr><td style=\"color:var(--mute)\">Results appear when the run finishes.</td></tr>";
+ $("lrk").value=lt;$("lrp").textContent=lrOn?"Pause":lt>=end?"Replay":"Run"}
+function lrTick(){if(!lrOn)return;if(lt<LS.end)lt++;if(lt>=LS.end)lrOn=false;lrRender();if(lrOn)lrTimer=setTimeout(lrTick,+$("lrv").value)}
+function lrInit(){
+ lrTable();
+ $("lrt").oninput=e=>{const d=e.target.dataset;if(d.k===undefined)return;const lim={a:[0,40],b:[1,30],p:[0,9]}[d.k];LP[+d.i][d.k]=Math.min(lim[1],Math.max(lim[0],parseInt(e.target.value)||lim[0]));lrBuild()};
+ $("lradd").onclick=()=>{if(LP.length<8){const l=LP[LP.length-1];LP.push({a:Math.min(40,l.a+1),b:4,p:2});lrTable();lrBuild()}};
+ $("lrdel").onclick=()=>{if(LP.length>1){LP.pop();lrTable();lrBuild()}};
+ $("lrex").onchange=e=>{LP=LEX[e.target.value].map(([a,b,p])=>({a,b,p}));lrTable();lrBuild()};
+ $("lra").onchange=lrBuild;$("lrq").oninput=lrBuild;
+ $("lrp").onclick=()=>{if(lrOn){lrStop();lrRender();return}if(lt>=LS.end)lt=0;lrOn=true;lrRender();lrTimer=setTimeout(lrTick,+$("lrv").value)};
+ $("lrs").onclick=()=>{lrStop();if(lt<LS.end)lt++;lrRender()};
+ $("lrb").onclick=()=>{lrStop();if(lt>0)lt--;lrRender()};
+ $("lrr").onclick=()=>{lrStop();lt=0;lrRender()};
+ $("lrk").oninput=e=>{lrStop();lt=+e.target.value;lrRender()};
+ lrBuild()}
+function pgSteps(refs,F,pol){
+ const slots=Array(F).fill(null),last={},ld={},out=[];let faults=0;
+ refs.forEach((r,i)=>{let fault=false,ev=null,slot=slots.indexOf(r);
+  if(slot<0){fault=true;faults++;slot=slots.indexOf(null);
+   if(slot<0){let v;
+    if(pol==="FIFO")v=slots.reduce((a,b)=>ld[b]<ld[a]?b:a);
+    else if(pol==="LRU")v=slots.reduce((a,b)=>last[b]<last[a]?b:a);
+    else{const nx=x=>{const j=refs.indexOf(x,i+1);return j<0?Infinity:j};v=slots.reduce((a,b)=>nx(b)>nx(a)?b:a)}
+    slot=slots.indexOf(v);ev=v}
+   slots[slot]=r;ld[r]=i}
+  last[r]=i;out.push({ref:r,slots:slots.slice(),fault,ev,slot,faults})});
+ return out}
+let PG=null,pgi=0,pgOn=false,pgTimer=null;
+function pgStop(){pgOn=false;clearTimeout(pgTimer);pgTimer=null}
+function pgBuild(){
+ pgStop();const refs=$("pgi").value.split(/[\s,]+/).filter(Boolean).map(Number).filter(x=>!isNaN(x)).slice(0,40),F=+$("pgn").value;
+ PG={refs,F,pol:$("pga").value,steps:pgSteps(refs,F,$("pga").value)};pgi=0;$("pgk").max=refs.length;$("pgk").value=0;pgRender()}
+function pgRender(){
+ if(!PG)return;const {refs,F,pol,steps}=PG,n=refs.length,s=pgi>0?steps[pgi-1]:null;
+ if(!n){$("pgview").innerHTML="<p style=\"color:var(--mute)\">Enter at least one page number.</p>";return}
+ const strip=refs.map((r,i)=>{const done=i<pgi,cur=i===pgi-1,bg=done?(steps[i].fault?"var(--c5)":"var(--c3)"):"transparent";
+  return `<span class="chip" style="min-width:34px;padding:4px 6px;background:${bg};color:${done?"#fff":"var(--ink)"};border:2px solid ${cur?"var(--ink)":done?bg:"var(--line)"}">${r}</span>`}).join("");
+ const why={FIFO:"it was loaded earliest",LRU:"it was used longest ago",OPT:"it is needed furthest in the future"}[pol];
+ const frames=Array.from({length:F},(_,k)=>{const v=s?s.slots[k]:null,hot=s&&s.slot===k;
+  const col=hot?(s.fault?"var(--c5)":"var(--c3)"):"var(--line)";
+  return `<div style="text-align:center"><div class="pgf" style="border-color:${col};${hot?`background:${col};color:#fff`:""}">${v===null?"-":v}</div><small style="color:var(--mute)">frame ${k+1}</small></div>`}).join("");
+ const f=s?s.faults:0,h=pgi-f;
+ const msg=!s?"Press Run or Step to start.":s.fault?`Reference ${s.ref}: page fault. ${s.ev===null?`It is loaded into an empty frame.`:`Page ${s.ev} is evicted because ${why}.`}`:`Reference ${s.ref}: hit. It is already in memory.`;
+ $("pgview").innerHTML=`<div class="chips" style="margin-bottom:12px">${strip}</div><div style="display:flex;gap:12px;flex-wrap:wrap">${frames}</div><p style="margin:12px 0 4px;font-weight:500">${msg}</p><p style="margin:0;color:var(--mute)">${pgi} of ${n} references: ${f} fault${f===1?"":"s"}, ${h} hit${h===1?"":"s"}${pgi?` (${(100*f/pgi).toFixed(0)}% fault rate)`:""}.</p>`;
+ $("pgk").value=pgi;$("pgp").textContent=pgOn?"Pause":pgi>=n?"Replay":"Run"}
+function pgTick(){if(!pgOn)return;if(pgi<PG.refs.length)pgi++;if(pgi>=PG.refs.length)pgOn=false;pgRender();if(pgOn)pgTimer=setTimeout(pgTick,+$("pgv").value)}
+function pgInit(){
+ ["pgi","pgn","pga"].forEach(i=>$(i).oninput=pgBuild);
+ $("pgp").onclick=()=>{if(pgOn){pgStop();pgRender();return}if(pgi>=PG.refs.length)pgi=0;pgOn=true;pgRender();pgTimer=setTimeout(pgTick,+$("pgv").value)};
+ $("pgs").onclick=()=>{pgStop();if(pgi<PG.refs.length)pgi++;pgRender()};
+ $("pgb").onclick=()=>{pgStop();if(pgi>0)pgi--;pgRender()};
+ $("pgr").onclick=()=>{pgStop();pgi=0;pgRender()};
+ $("pgk").oninput=e=>{pgStop();pgi=+e.target.value;pgRender()};
+ pgBuild()}
+let GP=[],gt=0,grem=[],gseg=[],gfin=[],gstack=[],gh=-1,ghn=0,gl="3 ticks",gdone=false,gbest=null;
+const GR={"1 tick":1,"3 ticks":3,"Until done":0};
+function gGen(){
+ const n=4+Math.floor(Math.random()*2),a=[];let S=0,at=0;
+ for(let i=0;i<n;i++){const b=1+Math.floor(Math.random()*5);at=i===0?0:Math.min(at+Math.floor(Math.random()*(S-at+1)),6);a.push({a:at,b});S+=b}
+ return a}
+const gReady=()=>GP.map((_,i)=>i).filter(i=>GP[i].a<=gt&&grem[i]>0);
+function gNew(w){GP=w||gGen();gt=0;grem=GP.map(p=>p.b);gseg=[];gfin=GP.map(()=>null);gstack=[];gh=-1;ghn=0;gdone=false;while(!gReady().length)gt++;gRender();$('gcode').value=gCode()}
+function gPick(i){
+ gstack.push({gt,grem:grem.slice(),gseg:gseg.map(s=>({...s})),gfin:gfin.slice(),ghn});
+ const run=Math.min(GR[gl]||grem[i],grem[i]),l=gseg[gseg.length-1];
+ if(l&&l.i===i&&l.e===gt)l.e=gt+run;else gseg.push({i,s:gt,e:gt+run});
+ gt+=run;grem[i]-=run;if(grem[i]===0)gfin[i]=gt;gh=-1;
+ if(grem.every(r=>r===0))gdone=true;else while(!gReady().length)gt++;
+ gRender()}
+function gRender(){
+ const n=GP.length,rd=gReady(),all=GP.map((_,i)=>i),total=GP.reduce((s,p)=>s+p.b,0);
+ const waited=i=>gfin[i]!==null?gfin[i]-GP[i].a-GP[i].b:GP[i].a<=gt?gt-GP[i].a-(GP[i].b-grem[i]):0;
+ const waitNow=all.reduce((s,i)=>s+waited(i),0);
+ const chips=a=>a.length?`<div class="chips">${a.map(chip).join("")}</div>`:`<span style="color:var(--mute)">none</span>`;
+ const box=(h,c)=>`<div class="lrc"><small>${h}</small>${c}</div>`;
+ const W=640,Lm=10,cw=(W-2*Lm)/total;
+ let g=`<svg class="chart" viewBox="0 0 ${W} 52" role="img" aria-label="Your schedule so far"><rect x="${Lm}" y="4" width="${W-2*Lm}" height="34" rx="4" fill="none" class="gl"/>`;
+ gseg.forEach(s=>{g+=`<rect x="${Lm+s.s*cw}" y="4" width="${(s.e-s.s)*cw}" height="34" style="fill:${RC[s.i]};stroke:var(--card)"/>`+((s.e-s.s)*cw>=18?`<text x="${Lm+(s.s+s.e)/2*cw}" y="26" text-anchor="middle" style="fill:${RF[s.i]};font:600 12px sans-serif">P${s.i+1}</text>`:"")});
+ g+=`<text class="t" x="${Lm}" y="50">0</text><text class="t" x="${W-Lm}" y="50" text-anchor="end">${total}</text></svg>`;
+ const btns=rd.map(i=>`<button class="gb${gh===i?" hint":""}" data-i="${i}" aria-label="Run P${i+1}, ${grem[i]} ticks left">${chip(i)}<span>${grem[i]} left</span><small>waited ${waited(i)}</small></button>`).join("");
+ $("gview").innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px">`+box("Clock",`<span class="big">t = ${gt}</span>`)+box("Waiting time so far",`<span class="big">${waitNow}</span>`)+box("Not arrived yet",all.filter(i=>GP[i].a>gt).length?`<div class="chips">${all.filter(i=>GP[i].a>gt).map(i=>chip(i)+`<small style="color:var(--mute);align-self:center">t=${GP[i].a}</small>`).join("")}</div>`:chips([]))+box("Finished",chips(all.filter(i=>grem[i]===0)))+`</div>`+
+  `<h3 class="sub">${gdone?"All processes finished":"Ready to run: tap one"}</h3><div class="chips" style="gap:10px">${btns}</div><h3 class="sub">Your schedule</h3>${g}`;
+ $("gundo").disabled=!gstack.length;$("ghint").disabled=gdone;
+ if(gdone)gResult();else $("gres").innerHTML=""}
+function gResult(){
+ const n=GP.length,mine=GP.reduce((s,p,i)=>s+gfin[i]-p.a-p.b,0)/n;
+ const base=a=>{const r=simTicks(GP.map(p=>({a:p.a,b:p.b,p:1})),a,2);return GP.reduce((s,p,i)=>s+r.fin[i]-p.a-p.b,0)/n};
+ const rows=[["You",mine,"var(--c1)"],["SRTF (optimal)",base("SRTF"),"var(--c3)"],["SJF",base("SJF"),"var(--c2)"],["FCFS",base("FCFS"),"var(--c5)"],["Round Robin, q=2",base("RR"),"var(--c4)"]];
+ const opt=rows[1][1],mx=Math.max(...rows.map(r=>r[1]),1),score=mine<=opt+1e-9?100:Math.round(100*opt/mine);gLast=`I scored ${score}% on the KernelSim scheduler challenge (code ${gCode()}). Can you beat it?`;
+ try{const b=+localStorage.getItem("ksBest")||0;gbest=Math.max(b,score);localStorage.setItem("ksBest",gbest)}catch(e){gbest=Math.max(gbest||0,score)}
+ const beat=rows.slice(2).filter(r=>mine<r[1]-1e-9).map(r=>r[0]);
+ const verdict=mine<=opt+1e-9?`You matched the optimum. Average waiting time ${mine.toFixed(2)}, and no schedule can do better on this workload.`:`Your average waiting time was ${mine.toFixed(2)}. The optimum is ${opt.toFixed(2)}, so you scored ${score}%.`;
+ $("gres").innerHTML=`<h3 class="sub">Result</h3><p style="margin:0 0 8px;font-weight:500">${verdict}</p>`+rows.map(([nm,v,c])=>`<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><span style="width:120px;font-size:14px;${nm==="You"?"font-weight:700":""}">${nm}</span><div style="flex:1;background:var(--line);border-radius:6px;height:22px;overflow:hidden"><div style="width:${100*v/mx}%;min-width:2px;height:100%;background:${c}"></div></div><b style="width:46px;text-align:right">${v.toFixed(2)}</b></div>`).join("")+
+  `<p style="margin:10px 0 0;color:var(--mute)">${beat.length?`You beat ${beat.join(", ")}. `:""}${ghn?`You used ${ghn} hint${ghn===1?"":"s"}. `:""}Best score this browser: ${gbest}%.</p><div class='bar'><button id='gshare'>Copy result to share</button></div>`}
+function gInit(){
+ mkTabs("gst",Object.keys(GR),()=>gl,v=>gl=v,()=>{});
+ $("gview").onclick=e=>{const b=e.target.closest("button[data-i]");if(b&&!gdone)gPick(+b.dataset.i)};
+ $("ghint").onclick=()=>{if(gdone)return;const rd=gReady(),h=rd.reduce((a,b)=>(grem[b]<grem[a]||(grem[b]===grem[a]&&GP[b].a<GP[a].a))?b:a);if(gh!==h)ghn++;gh=h;gRender()};
+ $("gundo").onclick=()=>{if(!gstack.length)return;const s=gstack.pop();gt=s.gt;grem=s.grem;gseg=s.gseg;gfin=s.gfin;ghn=s.ghn;gdone=false;gh=-1;gRender()};
+ $("gnew").onclick=()=>gNew();
+ gNew()}
+let KR=[],kF=3,kS=[],ki=0,kf=0,kh=[],kstack=[],khn=0,khs=-1,kpeek=false,kdone=false,kfl="3 frames",kpl="Hide the future",kbest=0;
+function kGen(){
+ let hot=[0,1,2,3,4,5,6,7].sort(()=>Math.random()-.5).slice(0,3);const out=[];
+ for(let i=0;i<24;i++){if(i&&i%8===0)hot[Math.floor(Math.random()*3)]=Math.floor(Math.random()*8);out.push(Math.random()<.8?hot[Math.floor(Math.random()*3)]:Math.floor(Math.random()*8))}
+ return out}
+function kAdv(){
+ while(ki<KR.length){const r=KR[ki];
+  if(kS.includes(r)){kh[ki]="hit";ki++}
+  else if(kS.includes(null)){kS[kS.indexOf(null)]=r;kh[ki]="fault";kf++;ki++}
+  else return}
+ kdone=true}
+function kNew(c){if(c){KR=c.refs;kF=c.f;kfl=c.f+' frames'}else{kF=+kfl[0];for(let t=0;t<40;t++){KR=kGen();if(pgSteps(KR,kF,'OPT').pop().faults-kF>=4)break}}kS=Array(kF).fill(null);ki=0;kf=0;kh=[];kstack=[];khn=0;khs=-1;kdone=false;kAdv();kRender();$('kcode').value=kCode();document.querySelectorAll('#kfr button').forEach(b=>b.setAttribute('aria-pressed',b.textContent===kfl))}
+function kEvict(s){
+ kstack.push({ki,kS:kS.slice(),kf,kh:kh.slice(),khn});
+ kS[s]=KR[ki];kh[ki]="fault";kf++;ki++;khs=-1;kAdv();kRender()}
+function kRender(){
+ const n=KR.length,pend=!kdone,r=KR[ki],nx=p=>{const j=KR.indexOf(p,ki+1);return j<0?Infinity:j};
+ const strip=KR.map((x,i)=>{const d=i<ki,cur=i===ki&&pend,bg=d?(kh[i]==="fault"?"var(--c5)":"var(--c3)"):"transparent";
+  return `<span class="chip" style="min-width:32px;padding:4px 5px;background:${bg};color:${d?"#fff":"var(--ink)"};border:2px solid ${cur?"var(--ink)":d?bg:"var(--line)"}">${d||cur||kpeek?x:"?"}</span>`}).join("");
+ const frames=kS.map((p,s)=>pend?`<button class="gb${khs===s?" hint":""}" data-s="${s}" aria-label="Evict page ${p}"><span class="pgf" style="width:56px;height:56px">${p}</span><small>evict${kpeek?` \u00b7 next use ${nx(p)===Infinity?"never":"in "+(nx(p)-ki)}`:""}</small></button>`:`<div style="text-align:center"><div class="pgf">${p===null?"-":p}</div><small style="color:var(--mute)">frame ${s+1}</small></div>`).join("");
+ $("kview").innerHTML=`<div class="chips" style="margin-bottom:12px">${strip}</div><div style="display:flex;gap:12px;flex-wrap:wrap">${frames}</div><p style="margin:12px 0 4px;font-weight:500">${pend?`Reference ${r}: page fault and every frame is full. Tap the page you want to evict.`:"All references processed."}</p><p style="margin:0;color:var(--mute)">${ki} of ${n} references, ${kf} fault${kf===1?"":"s"} so far.</p>`;
+ $("kundo").disabled=!kstack.length;$("khint").disabled=kdone;
+ if(kdone)kResult();else $("kres").innerHTML=""}
+function kResult(){
+ const f=p=>pgSteps(KR,kF,p).pop().faults,rows=[["You",kf,"var(--c1)"],["Optimal",f("OPT"),"var(--c3)"],["LRU",f("LRU"),"var(--c2)"],["FIFO",f("FIFO"),"var(--c5)"]];
+ const opt=rows[1][1],score=kf<=opt?100:Math.round(100*opt/kf),mx=Math.max(...rows.map(x=>x[1]),1);kLast=`I scored ${score}% on the KernelSim pager challenge (code ${kCode()}). Can you beat it?`;
+ try{kbest=Math.max(+localStorage.getItem("ksPagerBest")||0,score);localStorage.setItem("ksPagerBest",kbest)}catch(e){kbest=Math.max(kbest,score)}
+ const beat=rows.slice(2).filter(x=>kf<x[1]).map(x=>x[0]);
+ $("kres").innerHTML=`<h3 class="sub">Result</h3><p style="margin:0 0 8px;font-weight:500">${kf<=opt?`You matched the optimum with ${kf} faults. No policy can do better on this reference string.`:`You had ${kf} faults. The optimum is ${opt}, so you scored ${score}%.`}</p>`+
+  rows.map(([nm,v,c])=>`<div style="display:flex;align-items:center;gap:10px;margin:6px 0"><span style="width:90px;font-size:14px;${nm==="You"?"font-weight:700":""}">${nm}</span><div style="flex:1;background:var(--line);border-radius:6px;height:22px;overflow:hidden"><div style="width:${100*v/mx}%;min-width:2px;height:100%;background:${c}"></div></div><b style="width:30px;text-align:right">${v}</b></div>`).join("")+
+  `<p style="margin:10px 0 0;color:var(--mute)">${beat.length?`You beat ${beat.join(" and ")}. `:""}${khn?`You used ${khn} hint${khn===1?"":"s"}. `:""}${kpeek?"You peeked at the future. ":""}Best score in this browser: ${kbest}%.</p><div class='bar'><button id='kshare'>Copy result to share</button></div>`}
+function kInit(){
+ mkTabs("kfr",["3 frames","4 frames"],()=>kfl,v=>kfl=v,kNew);
+ mkTabs("kpk",["Hide the future","Peek at the future"],()=>kpl,v=>kpl=v,()=>{kpeek=kpl[0]==="P";kRender()});
+ $("kview").onclick=e=>{const b=e.target.closest("button[data-s]");if(b&&!kdone)kEvict(+b.dataset.s)};
+ $("khint").onclick=()=>{if(kdone)return;const nx=p=>{const j=KR.indexOf(p,ki+1);return j<0?Infinity:j};
+  let best=0;kS.forEach((p,s)=>{if(nx(p)>nx(kS[best]))best=s});if(khs!==best)khn++;khs=best;kRender()};
+ $("kundo").onclick=()=>{if(!kstack.length)return;const s=kstack.pop();ki=s.ki;kS=s.kS;kf=s.kf;kh=s.kh;khn=s.khn;kdone=false;khs=-1;kRender()};
+ $("knew").onclick=()=>kNew();kNew()}
+const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+function dineX(mode,steps=300){
+ const owner=Array(5).fill(null),st=Array(5).fill(0),w=Array(5).fill(0),h=[];let meals=0;
+ const ord=i=>{const l=i,r=(i+1)%5;return mode==="ordered"?[Math.min(l,r),Math.max(l,r)]:[l,r]};
+ for(let t=0;t<steps;t++){const i=Math.floor(Math.random()*5),[a,b]=ord(i);
+  if(st[i]===0){if(owner[a]===null){owner[a]=i;st[i]=1;w[i]=0}}
+  else if(st[i]===1){if(owner[b]===null){owner[b]=i;if(mode==="fast"){meals++;owner[a]=owner[b]=null;st[i]=0}else st[i]=2}
+   else{w[i]++;if(mode==="timeout"&&w[i]>=3){owner[a]=null;st[i]=0}}}
+  else{owner[a]=owner[b]=null;st[i]=0;meals++}
+  h.push(meals)}
+ return{meals,stalled:h[steps-1]===h[steps-101]}}
+const dstat=m=>{const r=Array.from({length:200},()=>dineX(m));return{stalled:r.filter(x=>x.stalled).length,meals:avg(r.map(x=>x.meals))}};
+const rtr=(lock,T=2)=>Array.from({length:5},()=>race(lock,1000,T));
+const rfmt=(v,exp)=>`<p style="margin:8px 0"><b>Final counter in 5 runs:</b> ${v.join(", ")}. Expected ${exp}. ${exp-avg(v)<1?"No updates were lost.":`About ${(100*(exp-avg(v))/exp).toFixed(0)}% of updates were lost.`}</p>`;
+const dfmt=(s)=>`<p style="margin:8px 0">Over 200 runs of 300 steps, <b>${s.stalled} stalled</b> with nobody eating. Average meals eaten: <b>${s.meals.toFixed(1)}</b>.</p>`;
+const thr=(n,M=24,K=10,w=6,p=.5)=>{const f=M/n,rate=f>=w?.02:.02+.9*(1-f/w);return(1-Math.pow(p,n))/(1+rate*K)};
+const txs=Array.from({length:16},(_,i)=>i+1);
+const LABS={
+ "Race condition":{
+  symptom:()=>`<p style="margin:0">Two threads each add 1 to a shared counter 1,000 times. The counter should end at 2000.</p>${rfmt(rtr(false),2000)}`,
+  options:[
+   {label:"Protect the update with a mutex",run:()=>{const v=rtr(true);return{verdict:avg(v)===2000?"good":"bad",html:rfmt(v,2000),why:"The mutex makes load, add and store one indivisible step, so no thread can overwrite another's update."}}},
+   {label:"Add a short sleep before each update",run:()=>{const v=rtr(false);return{verdict:"bad",html:rfmt(v,2000),why:"Sleeping only changes the timing. The three steps of an increment can still interleave, so the bug is hidden, not fixed."}}},
+   {label:"Use more threads so more updates survive",run:()=>{const v=rtr(false,4);return{verdict:"bad",html:rfmt(v,4000),why:"More threads means more overlapping updates, so the fraction that gets lost goes up."}}}]},
+ "Deadlock":{
+  symptom:()=>`<p style="margin:0">Five philosophers share five forks and each grabs the left fork first, then the right.</p>${dfmt(dstat("naive"))}`,
+  options:[
+   {label:"Everyone picks up the lower-numbered fork first",run:()=>{const s=dstat("ordered");return{verdict:s.stalled===0?"good":"partial",html:dfmt(s),why:"A fixed global order on resources makes a circular wait impossible, so deadlock cannot form."}}},
+   {label:"Put a fork back after waiting 3 turns, then retry",run:()=>{const s=dstat("timeout");return{verdict:"partial",tag:"Mostly works, but it is not a guarantee",html:dfmt(s),why:"In this simulation it recovers almost as well as ordering the forks, but turns are wasted picking forks up and dropping them, and philosophers can keep releasing in step (livelock). It is a mitigation, not a guarantee."}}},
+   {label:"Make eating instant so forks are held briefly",run:()=>{const s=dstat("fast");return{verdict:"bad",html:dfmt(s),why:"The deadlock forms while everyone holds one fork and waits for the next. How fast eating is does not break that cycle."}}}]},
+ "Thrashing":{
+  symptom:()=>`<p style="margin:0">24 frames are shared by 12 processes that each need about 6 frames to run well. The OS sees an idle CPU and keeps admitting work.</p><p style="margin:8px 0">CPU utilisation is <b>${(100*thr(12)).toFixed(0)}%</b>, because processes spend their time waiting for page faults.</p><div id="labc"></div>`,
+  after:()=>lc("labc",txs,[{ys:txs.map(n=>100*thr(n)),c:"var(--c4)"}],"processes in memory",{mark:12,ymax:100,fmt:v=>Math.round(v)+"%",label:"CPU utilisation versus processes in memory"}),
+  options:[
+   {label:"Admit more processes to keep the CPU busy",run:()=>({verdict:"bad",html:`<p style="margin:8px 0">With 16 processes, utilisation is <b>${(100*thr(16)).toFixed(0)}%</b>.</p><div id="labc2"></div>`,why:"Each process gets even fewer frames, so faults rise and the CPU idles more.",after:()=>lc("labc2",txs,[{ys:txs.map(n=>100*thr(n)),c:"var(--c4)"}],"processes in memory",{mark:16,ymax:100,fmt:v=>Math.round(v)+"%",label:"After admitting more processes"})})},
+   {label:"Suspend processes until working sets fit in memory",run:()=>({verdict:"good",html:`<p style="margin:8px 0">With 4 processes, each gets 6 frames and utilisation is <b>${(100*thr(4)).toFixed(0)}%</b>.</p><div id="labc2"></div>`,why:"Keeping the total working set within physical memory stops the constant faulting. Fewer processes run faster than many that thrash.",after:()=>lc("labc2",txs,[{ys:txs.map(n=>100*thr(n)),c:"var(--c4)"}],"processes in memory",{mark:4,ymax:100,fmt:v=>Math.round(v)+"%",label:"After suspending processes"})})},
+   {label:"Double the RAM to 48 frames",run:()=>({verdict:"partial",html:`<p style="margin:8px 0">With 12 processes on 48 frames, utilisation is <b>${(100*thr(12,48)).toFixed(0)}%</b>.</p><div id="labc2"></div><div class="lg"><span style="--k:var(--c4)">Before</span><span style="--k:var(--c3)">After</span></div>`,why:"Better, but 12 processes still do not fit in 48 frames. Memory helps, yet admitting too many processes is still the root cause.",after:()=>lc("labc2",txs,[{ys:txs.map(n=>100*thr(n)),c:"var(--c4)"},{ys:txs.map(n=>100*thr(n,48)),c:"var(--c3)"}],"processes in memory",{mark:12,ymax:100,fmt:v=>Math.round(v)+"%",label:"Before and after doubling the RAM"})})},
+   {label:"Install a faster CPU",run:()=>({verdict:"bad",html:`<p style="margin:8px 0">With a CPU twice as fast, utilisation is <b>${(100*thr(12,24,20)).toFixed(0)}%</b>.</p><div id="labc2"></div><div class="lg"><span style="--k:var(--c4)">Before</span><span style="--k:var(--c3)">After</span></div>`,why:"Disk-bound page faults take the same time, so a faster CPU spends an even larger share of its time waiting.",after:()=>lc("labc2",txs,[{ys:txs.map(n=>100*thr(n)),c:"var(--c4)"},{ys:txs.map(n=>100*thr(n,24,20)),c:"var(--c3)"}],"processes in memory",{mark:12,ymax:100,fmt:v=>Math.round(v)+"%",label:"Before and after a faster CPU"})})}]}};
+let labS="Race condition";
+function labRender(){
+ const S=LABS[labS];
+ $("labv").innerHTML=`<h3 class="sub" style="margin-top:0">The bug</h3>${S.symptom()}<div class="bar"><button id="labagain">Reproduce again</button></div><h3 class="sub">Choose a fix</h3><div class="chips" style="gap:10px">${S.options.map((o,i)=>`<button class="gb" data-o="${i}" style="flex:1 1 220px;align-items:flex-start;text-align:left">${o.label}</button>`).join("")}</div><div id="labout"></div>`;
+ if(S.after)S.after()}
+function labInit(){
+ mkTabs("labt",Object.keys(LABS),()=>labS,v=>labS=v,labRender);
+ $("labv").onclick=e=>{
+  if(e.target.id==="labagain"){labRender();return}
+  const b=e.target.closest("button[data-o]");if(!b)return;
+  let r=LABS[labS].options[+b.dataset.o].run(),col={good:"var(--c3)",partial:"var(--c2)",bad:"var(--c5)"}[r.verdict],tag={good:"This fixes it",partial:"This helps, but not fully",bad:"This does not fix it"}[r.verdict];
+  if(r.tag)tag=r.tag;
+  $("labout").innerHTML=`<div style="border-left:6px solid ${col};padding:10px 14px;margin-top:14px;background:var(--bg);border-radius:8px"><b>${tag}</b>${r.html}<p style="margin:8px 0 0;color:var(--mute)">${r.why}</p></div>`;
+  if(r.after)r.after()};
+ labRender()}
+const rint=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const DX={
+ "Race condition":{
+  gen:()=>{const v=rtr(false).slice(0,3);return{lines:["$ ./counter --threads 2 --increments 1000",...v.map((x,i)=>`run ${i+1}: counter = ${x}   (expected 2000)`),"cpu: 100%   threads running: 2   hangs: 0   crashes: 0"],clue:"The wrong answer changes from run to run, nothing hangs and the CPU stays busy. That points to unlucky timing, not to threads waiting on each other."}},
+  why:"Two threads interleaved the load, add and store steps of their increments, so some updates overwrote others. The result depends on timing.",fix:"Protect the shared counter with a mutex (or use an atomic add)."},
+ "Deadlock":{
+  gen:()=>{let r;do{r=dine("naive",300)}while(r.dead===null);return{lines:["$ ./philosophers --pick left-then-right",`step ${r.dead}: meals eaten = ${r.h[r.dead]}`,`step 300: meals eaten = ${r.h[299]}`,"threads P0..P4: all BLOCKED, each holding 1 fork, each waiting for 1 fork","cpu: 0%   hangs: 1"],clue:"Progress stops completely and the CPU goes idle. Every thread holds a resource and waits for one that another blocked thread holds."}},
+  why:"A circular wait formed: each philosopher holds one fork and needs the next one, so nobody can ever continue.",fix:"Break the cycle: acquire resources in a fixed global order, or limit how many threads compete at once."},
+ "Starvation":{
+  gen:()=>{const k=rint(3,5),pri=rint(5,9),w=[{a:0,b:3,p:pri}];for(let i=0;i<k;i++)w.push({a:3*i,b:3,p:1});
+   const s=simTicks(w,"PRIO-P",2),t=3*k-1,f=s.frames[t];
+   const done=f.rem.map((r,i)=>i).filter(i=>i>0&&f.rem[i]===0).map(i=>"P"+(i+1)).join(", ");
+   return{lines:["$ ./sched --policy priority-preemptive",`t=${t}: finished: ${done||"none"}   running: P${f.run+1}`,`P1: priority ${pri}, arrived t=0, has run 0 of 3 ticks, waiting ${t} ticks`,`new high-priority jobs have kept arriving every 3 ticks`,"cpu: 100%   deadlocks: 0   overall throughput: normal"],clue:"The CPU is busy and the system as a whole makes progress, but one low-priority job never gets a turn while higher-priority work keeps arriving."}},
+  why:"A steady stream of higher-priority work keeps pushing one process to the back, so it waits indefinitely even though nothing is blocked.",fix:"Add aging: raise a process's priority the longer it waits."},
+ "Thrashing":{
+  gen:()=>{const n=rint(10,14);return{lines:["$ vmstat 1   (excerpt)",`processes: ${n}   free frames: 0`,`page faults/s: ${rint(3000,5200)}   disk busy: ${rint(96,100)}%`,`cpu busy: ${(100*thr(n)).toFixed(0)}%   (the OS keeps admitting more processes)`],clue:"The disk is saturated by page faults while the CPU idles, and memory is full. Processes spend their time waiting for pages, not computing."}},
+  why:"The processes' working sets no longer fit in memory, so every process keeps faulting and evicting pages the others need.",fix:"Reduce the degree of multiprogramming (suspend processes) so working sets fit, or add memory."},
+ "Convoy effect":{
+  gen:()=>{const L=rint(20,28),sh=[rint(1,3),rint(1,3),rint(1,3)],w=[{a:0,b:L,p:1},...sh.map((b,i)=>({a:i+1,b,p:1}))],s=simTicks(w,"FCFS",2);
+   const wt=w.map((p,i)=>s.fin[i]-p.a-p.b);
+   return{lines:["$ ./sched --policy fcfs",`P1: burst ${L} ticks, waited ${wt[0]}`,...sh.map((b,i)=>`P${i+2}: burst ${b} ticks, waited ${wt[i+1]}`),`cpu: 100%   average waiting: ${avg(wt).toFixed(1)} ticks   nobody is starved`],clue:"Every job does run, in arrival order. The short jobs just wait a very long time behind one long job that arrived first."}},
+  why:"With first-come first-served, one long job at the front makes every short job behind it wait, so average waiting time balloons.",fix:"Use a policy that favours short jobs (SJF/SRTF) or time-slices the CPU (Round Robin)."}};
+let dxK="",dxEv=null,dxN=0,dxOk=0,dxStreak=0,dxBest=0,dxDone=false,dxHint=false;
+function dxNew(){
+ const keys=Object.keys(DX).filter(k=>k!==dxK);dxK=keys[Math.floor(Math.random()*keys.length)];dxEv=DX[dxK].gen();dxDone=false;dxHint=false;dxRender()}
+function dxRender(){
+ $("dxmon").textContent=dxEv.lines.join("\n");
+ $("dxclue").textContent=dxHint?"Extra clue: "+dxEv.clue:"";
+ $("dxopt").innerHTML=Object.keys(DX).map(k=>`<button class="gb" data-k="${k}" style="flex:1 1 150px"${dxDone?" disabled":""}>${k}</button>`).join("");
+ $("dxhint").disabled=dxDone||dxHint;$("dxnext").disabled=!dxDone;
+ if(!dxDone)$("dxout").innerHTML="";
+ $("dxscore").textContent=`Solved ${dxOk} of ${dxN} cases. Streak without hints: ${dxStreak}. Best streak in this browser: ${dxBest}.`}
+function dxPick(k){
+ if(dxDone)return;dxDone=true;dxN++;const ok=k===dxK,D=DX[dxK];
+ if(ok){dxOk++;if(!dxHint){dxStreak++}}else dxStreak=0;
+ try{dxBest=Math.max(+localStorage.getItem("ksDetBest")||0,dxStreak);localStorage.setItem("ksDetBest",dxBest)}catch(e){dxBest=Math.max(dxBest,dxStreak)}
+ dxRender();
+ $("dxout").innerHTML=`<div style="border-left:6px solid ${ok?"var(--c3)":"var(--c5)"};padding:10px 14px;margin-top:14px;background:var(--bg);border-radius:8px"><b>${ok?"Correct: "+dxK:"Not quite. It was: "+dxK}</b>${ok?"":`<p style="margin:8px 0 0">You chose ${k}.</p>`}<p style="margin:8px 0 0">${D.why}</p><p style="margin:8px 0 0;color:var(--mute)"><b>The tell:</b> ${dxEv.clue}</p><p style="margin:8px 0 0;color:var(--mute)"><b>The fix:</b> ${D.fix}</p></div>`}
+function dxInit(){
+ $("dxopt").onclick=e=>{const b=e.target.closest("button[data-k]");if(b)dxPick(b.dataset.k)};
+ $("dxhint").onclick=()=>{dxHint=true;dxRender()};
+ $("dxnext").onclick=dxNew;dxNew()}
+const NL=String.fromCharCode(10);
+let gLast='',kLast='';
+function gCode(){return 'S1:'+GP.map(p=>p.a+'-'+p.b).join(',')}
+function gParse(s){const m=/^S1:([0-9,-]+)$/.exec(s.trim());if(!m)return null;const w=m[1].split(',').map(x=>x.split('-').map(Number));if(w.length<2||w.length>8||w.some(x=>x.length!==2||!(x[0]>=0&&x[0]<=30&&x[1]>=1&&x[1]<=12)))return null;return w.map(x=>({a:x[0],b:x[1]}))}
+function kCode(){return 'P1:'+kF+':'+KR.join(',')}
+function kParse(s){const m=/^P1:([34]):([0-9,]+)$/.exec(s.trim());if(!m)return null;const r=m[2].split(',').map(Number);if(r.length<8||r.length>40||r.some(x=>!(x>=0&&x<=9)))return null;return{f:+m[1],refs:r}}
+async function copyText(src,msg){const t=typeof src==='string'?src:src.value;try{await navigator.clipboard.writeText(t);msg.textContent='Copied.'}catch(e){if(typeof src!=='string'){src.select();try{document.execCommand('copy');msg.textContent='Copied.';return}catch(_){}}msg.textContent=t}}
+function shareInit(){
+ $('gload').onclick=()=>{const w=gParse($('gcode').value);if(!w){$('gmsg').textContent='That is not a valid scheduler code.';return}$('gmsg').textContent='';gNew(w)};
+ $('gcopy').onclick=()=>copyText($('gcode'),$('gmsg'));
+ $('gres').addEventListener('click',e=>{if(e.target.id==='gshare')copyText(gLast,$('gmsg'))});
+ $('kload').onclick=()=>{const c=kParse($('kcode').value);if(!c){$('kmsg').textContent='That is not a valid pager code.';return}$('kmsg').textContent='';kNew(c)};
+ $('kcopy').onclick=()=>copyText($('kcode'),$('kmsg'));
+ $('kres').addEventListener('click',e=>{if(e.target.id==='kshare')copyText(kLast,$('kmsg'))});
+ try{const h=decodeURIComponent(location.hash.slice(1));if(h.startsWith('S1:')){const w=gParse(h);if(w)gNew(w)}else if(h.startsWith('P1:')){const c=kParse(h);if(c)kNew(c)}}catch(e){}}
+
+class OS{
+ constructor(){this.t=0;this.algo='RR';this.Q=2;this.P=[];this.q=[];this.ml=[[],[],[]];this.cur=-1;this.slice=0;this.pend=-1;this.log=[];this.n=0}
+ alive(i){return !this.P[i].dead&&this.P[i].rem>0}
+ live(){return this.P.some((p,i)=>this.alive(i))}
+ enq(i){if(this.algo==='RR')this.q.push(i);else if(this.algo==='MLFQ')this.ml[this.P[i].lvl].push(i)}
+ spawn(b,p){const i=this.P.length;this.P.push({id:'P'+(++this.n),b,rem:b,p,a:this.t,fin:null,first:null,dead:false,lvl:0});this.enq(i);return this.P[i].id}
+ setAlgo(a,Q){this.algo=a;if(Q)this.Q=Q;this.q=[];this.ml=[[],[],[]];this.cur=-1;this.pend=-1;this.slice=0;this.P.forEach((p,i)=>{p.lvl=0;if(this.alive(i))this.enq(i)})}
+ kill(id){const i=this.P.findIndex(p=>p.id===id);if(i<0||!this.alive(i))return false;this.P[i].dead=true;this.q=this.q.filter(x=>x!==i);this.ml=this.ml.map(l=>l.filter(x=>x!==i));if(this.cur===i)this.cur=-1;if(this.pend===i)this.pend=-1;return true}
+ tick(){
+  const P=this.P,algo=this.algo,pre=algo==='SRTF'||algo==='PRIO-P';
+  if(this.pend>=0){this.enq(this.pend);this.pend=-1}
+  const ready=P.map((p,i)=>i).filter(i=>this.alive(i)),byRem=i=>[P[i].rem,P[i].a],byPri=i=>[P[i].p,P[i].a],key={FCFS:i=>[P[i].a],SJF:byRem,SRTF:byRem,PRIO:byPri,'PRIO-P':byPri}[algo];
+  let run=-1;
+  if(algo==='RR'){if(this.cur>=0)run=this.cur;else if(this.q.length){run=this.q.shift();this.slice=0}}
+  else if(algo==='MLFQ'){if(this.cur>=0)run=this.cur;else{const l=this.ml.findIndex(x=>x.length);if(l>=0){run=this.ml[l].shift();this.slice=0}}}
+  else if(this.cur>=0&&!pre)run=this.cur;
+  else if(ready.length){run=ready.reduce((a,b)=>cmpA(key(b),key(a))<0?b:a);if(this.cur>=0&&pre&&ready.includes(this.cur)&&cmpA(key(this.cur),key(run))===0)run=this.cur}
+  this.log.push(run>=0?P[run].id:'-');this.cur=run;
+  if(run>=0){const p=P[run];if(p.first===null)p.first=this.t;p.rem--;this.slice++;
+   if(p.rem===0){p.fin=this.t+1;this.cur=-1}
+   else if(algo==='RR'&&this.slice>=this.Q){this.pend=run;this.cur=-1}
+   else if(algo==='MLFQ'&&this.slice>=[2,4,8][p.lvl]){p.lvl=Math.min(p.lvl+1,2);this.pend=run;this.cur=-1}}
+  this.t++}}
+const SH={os:new OS(),hist:[],hi:0,mem:null};
+const SHP={fcfs:'FCFS',sjf:'SJF',srtf:'SRTF',prio:'PRIO','prio-p':'PRIO-P',rr:'RR',mlfq:'MLFQ'};
+const SHC=['help','spawn','ps','top','run','sched','kill','gantt','stats','uptime','reset','clear','demo','touch','mem','pager','frames','free','history'];
+const HELP=['commands:','  spawn <burst> [pri]   create a process (lower pri number runs first)','  ps                    list processes','  top                   system summary','  run [n|all]           advance the CPU n ticks (default 1)','  sched [policy] [q]    show or set the scheduler: fcfs sjf srtf prio prio-p rr mlfq','  kill <pid>            terminate a process, e.g. kill P2','  gantt                 timeline of what has run','  stats                 waiting, turnaround and response of finished processes','  touch <pages...>      reference memory pages, e.g. touch 7 0 1 2','  mem | free            show frames and fault counts','  frames <n>            set the number of frames (2-8)','  pager <fifo|lru>      set the page-replacement policy','  uptime  history  clear  reset  demo'].join(NL);
+function shMemReset(n){SH.mem={n:n||(SH.mem?SH.mem.n:4),pol:SH.mem?SH.mem.pol:'lru',slots:[],last:{},ld:{},t:0,f:0,h:0}}
+function shOut(s,c){const d=document.createElement('div');if(c)d.className=c;d.textContent=s;const t=$('termout');t.appendChild(d);t.scrollTop=t.scrollHeight}
+function shPs(){const o=SH.os;if(!o.P.length)return 'no processes (try: spawn 5)';const last=o.log[o.log.length-1],L=['PID  STATE    PRI  BURST  LEFT  WAIT'];
+ o.P.forEach(p=>{const st=p.dead?'killed':p.rem===0?'done':last===p.id?'running':'ready',w=p.fin!==null?p.fin-p.a-p.b:p.dead?'-':(o.t-p.a)-(p.b-p.rem);L.push([p.id,st,p.p,p.b,p.rem,w].map((x,k)=>String(x).padEnd([5,9,5,7,6,4][k])).join(''))});return L.join(NL)}
+function shFrames(){const m=SH.mem;return m.slots.concat(Array(m.n-m.slots.length).fill('-')).join(' ')}
+function shTouch(pg){const m=SH.mem,i=m.t++;let ev=null,fault=false,s=m.slots.indexOf(pg);
+ if(s<0){fault=true;m.f++;s=m.slots.length<m.n?m.slots.length:-1;
+  if(s<0){const v=m.slots.reduce((x,y)=>(m.pol==='fifo'?m.ld[y]<m.ld[x]:m.last[y]<m.last[x])?y:x);s=m.slots.indexOf(v);ev=v}
+  m.slots[s]=pg;m.ld[pg]=i}else m.h++;
+ m.last[pg]=i;return{fault,ev}}
+function shExec(line){
+ const a=line.trim().split(/ +/),c=a[0].toLowerCase(),o=SH.os;
+ switch(c){
+  case '':return;
+  case 'help':return shOut(HELP);
+  case 'spawn':{const b=Number(a[1]),p=a[2]===undefined?1:Number(a[2]);
+   if(!Number.isInteger(b)||b<1||b>30||!Number.isInteger(p)||p<0||p>9)return shOut('usage: spawn <burst 1-30> [priority 0-9]   (lower number = higher priority)','err');
+   if(o.P.filter((x,i)=>o.alive(i)).length>=12)return shOut('too many live processes (max 12)','err');
+   return shOut(`spawned ${o.spawn(b,p)} (burst ${b}, priority ${p})`)}
+  case 'ps':return shOut(shPs());
+  case 'top':{const last=o.log[o.log.length-1]||'-',rd=o.P.filter((p,i)=>o.alive(i)&&p.id!==last).map(p=>p.id).join(' ')||'-',busy=o.log.filter(x=>x!=='-').length;
+   shOut(`t=${o.t}  policy=${o.algo}${o.algo==='RR'?' q='+o.Q:''}  last ran=${last==='-'?'idle':last}  waiting=[${rd}]  cpu util=${o.t?Math.round(100*busy/o.t):0}%`);return shOut(shPs(),'dim')}
+  case 'run':{const n=a[1]==='all'?Infinity:a[1]===undefined?1:parseInt(a[1]);
+   if(!(n>=1))return shOut('usage: run [n|all]','err');
+   if(!o.live())return shOut('nothing to run: no live processes (try: spawn 5)','dim');
+   let k=0;const fin=[];
+   while(k<n&&o.live()&&k<2000){const prev=o.P.map(p=>p.fin);o.tick();k++;o.P.forEach((p,i)=>{if(p.fin!==null&&prev[i]===null)fin.push(`t=${o.t}: ${p.id} finished`)})}
+   shOut(`ran ${k} tick${k===1?'':'s'}, now t=${o.t}`);fin.forEach(f=>shOut(f,'dim'));return}
+  case 'sched':{if(!a[1])return shOut(`scheduler: ${o.algo}${o.algo==='RR'?' (quantum '+o.Q+')':''}`);
+   const k=SHP[a[1].toLowerCase()];if(!k)return shOut('unknown policy. choose: fcfs sjf srtf prio prio-p rr mlfq','err');
+   const q=a[2]===undefined?undefined:parseInt(a[2]);if(a[2]!==undefined&&!(q>=1&&q<=10))return shOut('quantum must be 1 to 10','err');
+   o.setAlgo(k,q);return shOut(`scheduler set to ${k}${k==='RR'?' (quantum '+o.Q+')':''}`)}
+  case 'kill':{const id=(a[1]||'').toUpperCase(),pid=/^[0-9]+$/.test(id)?'P'+id:id;return o.kill(pid)?shOut('killed '+pid):shOut('no such live process: '+(a[1]||''),'err')}
+  case 'gantt':{if(!o.log.length)return shOut('nothing has run yet','dim');const seg=[];
+   o.log.forEach((id,k)=>{const l=seg[seg.length-1];if(l&&l.id===id)l.e=k+1;else seg.push({id,s:k,e:k+1})});
+   shOut(seg.map(s=>`${s.id==='-'?'idle':s.id}[${s.s}-${s.e}]`).join(' '));return shOut(o.log.map(x=>x==='-'?'.':String(Number(x.slice(1))%10)).join(''),'dim')}
+  case 'stats':{const d=o.P.filter(p=>p.fin!==null);if(!d.length)return shOut('no finished processes yet','dim');
+   const n=d.length,w=d.reduce((s,p)=>s+p.fin-p.a-p.b,0)/n,tt=d.reduce((s,p)=>s+p.fin-p.a,0)/n,r=d.reduce((s,p)=>s+p.first-p.a,0)/n,busy=o.log.filter(x=>x!=='-').length;
+   return shOut([`finished:        ${n}`,`avg waiting:     ${w.toFixed(2)}`,`avg turnaround:  ${tt.toFixed(2)}`,`avg response:    ${r.toFixed(2)}`,`cpu utilisation: ${o.t?Math.round(100*busy/o.t):0}%`].join(NL))}
+  case 'uptime':{const busy=o.log.filter(x=>x!=='-').length;return shOut(`up ${o.t} ticks, ${busy} busy, ${o.t-busy} idle`)}
+  case 'touch':{const pgs=a.slice(1).map(Number);if(!pgs.length||pgs.some(x=>!Number.isInteger(x)||x<0||x>99))return shOut('usage: touch <page numbers 0-99>, e.g. touch 7 0 1 2','err');
+   pgs.forEach(p=>{const r=shTouch(p);shOut(`page ${p}: ${r.fault?'FAULT'+(r.ev!==null?' (evicted '+r.ev+')':''):'hit'}   [${shFrames()}]`,r.fault?'err':'')});return}
+  case 'mem':{const m=SH.mem,t=m.f+m.h;return shOut(`frames [${shFrames()}]  policy=${m.pol.toUpperCase()}  faults=${m.f}  hits=${m.h}  fault rate=${t?Math.round(100*m.f/t):0}%`)}
+  case 'free':{const m=SH.mem;return shOut([`frames total: ${m.n}`,`frames used:  ${m.slots.length}`,`frames free:  ${m.n-m.slots.length}`,`page faults:  ${m.f}`].join(NL))}
+  case 'frames':{const n=Number(a[1]);if(!Number.isInteger(n)||n<2||n>8)return shOut('usage: frames <2-8>','err');shMemReset(n);return shOut(`memory reset with ${n} frames`)}
+  case 'pager':{const p=(a[1]||'').toLowerCase();if(p!=='fifo'&&p!=='lru')return shOut('usage: pager <fifo|lru>','err');SH.mem.pol=p;return shOut('page replacement: '+p.toUpperCase())}
+  case 'history':return shOut(SH.hist.map((h,i)=>`${i+1}  ${h}`).join(NL)||'no history yet','dim');
+  case 'clear':$('termout').innerHTML='';return;
+  case 'reset':SH.os=new OS();shMemReset();return shOut('system reset');
+  case 'demo':{SH.os=new OS();shMemReset();['sched rr 2','spawn 5 2','spawn 3 1','spawn 8 3','run 4','spawn 2 1','ps','run all','gantt','stats','touch 7 0 1 2 0 3 0 4','mem'].forEach(x=>{shOut('kernelsim$ '+x,'cmd');shExec(x)});return}
+  case 'sudo':return shOut('nice try. there is only one user here, and it is you.','dim');
+  default:return shOut(`${c}: command not found. Type help.`,'err')}}
+function shSubmit(line){shOut('kernelsim$ '+line,'cmd');if(line.trim()){SH.hist.push(line.trim());SH.hi=SH.hist.length}shExec(line)}
+function shellInit(){
+ shMemReset();
+ $('shq').innerHTML=['demo','help','ps','run 3','top','gantt','stats','sched sjf','reset'].map(c=>`<button data-c='${c}'>${c}</button>`).join('');
+ $('shq').onclick=e=>{const b=e.target.closest('button[data-c]');if(b)shSubmit(b.dataset.c)};
+ const inp=$('terminp');
+ inp.onkeydown=e=>{
+  if(e.key==='Enter'){shSubmit(inp.value);inp.value=''}
+  else if(e.key==='ArrowUp'){if(SH.hi>0)inp.value=SH.hist[--SH.hi];e.preventDefault()}
+  else if(e.key==='ArrowDown'){SH.hi=Math.min(SH.hist.length,SH.hi+1);inp.value=SH.hist[SH.hi]||'';e.preventDefault()}
+  else if(e.key==='Tab'){const v=inp.value.trim().toLowerCase();if(v&&!v.includes(' ')){const m=SHC.filter(c=>c.startsWith(v));if(m.length===1)inp.value=m[0]+' ';else if(m.length>1)shOut(m.join('  '),'dim')}e.preventDefault()}};
+ shOut('KernelSim shell. Type help, or tap a command above.','dim')}
+
+const ILN=['load','add 1','store'];
+const ILALL=(()=>{const out=[];const rec=(a,b,s)=>{if(a===3&&b===3){out.push(s.slice());return}if(a<3){s.push(1);rec(a+1,b,s);s.pop()}if(b<3){s.push(2);rec(a,b+1,s);s.pop()}};rec(0,0,[]);return out})();
+function ilState(seq){let mem=0;const reg=[null,null],pc=[0,0];seq.forEach(t=>{const k=t-1;if(pc[k]===0)reg[k]=mem;else if(pc[k]===1)reg[k]++;else mem=reg[k];pc[k]++});return{mem,reg,pc}}
+const ilOK=s=>{const a=s.indexOf(1),b=s.indexOf(2);return s.slice(a,a+3).every(x=>x===1)&&s.slice(b,b+3).every(x=>x===2)};
+let ilM='No lock',ilSeq=[];
+function ilRender(){
+ const st=ilState(ilSeq),done=ilSeq.length===6,mutex=ilM==='With mutex',blocked=k=>mutex&&st.pc[1-k]>0&&st.pc[1-k]<3,cnt=[0,0];
+ const chips=ilSeq.map(t=>{const k=t-1,nm=ILN[cnt[k]++];return `<span class='chip' style='background:${RC[k]};color:${RF[k]}'>T${t} ${nm}</span>`}).join('');
+ const box=(h,v)=>`<div class='lrc'><small>${h}</small><span class='big'>${v}</span></div>`,lost=ILALL.filter(s=>ilState(s).mem===1).length;
+ $('ilview').innerHTML=`<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px'>${box('Counter in memory',st.mem)}${box('Thread 1 register',st.reg[0]===null?'-':st.reg[0])}${box('Thread 2 register',st.reg[1]===null?'-':st.reg[1])}</div><h3 class='sub'>Your interleaving</h3><div class='chips'>${chips||`<span style='color:var(--mute)'>Pick a step for either thread below.</span>`}</div>`+(done?`<p style='margin:12px 0 0;font-weight:500'>${st.mem===2?'Counter = 2. Both increments counted.':'Counter = 1. One increment was lost.'}</p>`:'');
+ [0,1].forEach(k=>{const b=$('il'+(k+1)),f=st.pc[k]===3;b.textContent=f?`Thread ${k+1} finished`:`Thread ${k+1}: ${ILN[st.pc[k]]}`;b.disabled=done||f||blocked(k)});
+ $('ilsum').textContent=`${lost} of 20 interleavings lose an update (${Math.round(100*lost/20)}%). ${mutex?'With a mutex only 2 of the 20 are possible, and both are correct.':'Click any of them below to replay it.'}`;
+ $('ilgrid').innerHTML=ILALL.map((s,i)=>{const f=ilState(s).mem,ok=!mutex||ilOK(s);return `<button data-i='${i}' ${ok?'':'disabled'} style='display:flex;flex-direction:column;gap:6px;align-items:center;padding:8px;border:2px solid ${f===1?'var(--c5)':'var(--c3)'};border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer;opacity:${ok?1:.3}' aria-label='Interleaving ${i+1}, final counter ${f}'><span style='display:flex;gap:2px'>${s.map(t=>`<i style='width:14px;height:14px;border-radius:3px;background:${RC[t-1]}'></i>`).join('')}</span><small>final ${f}</small></button>`}).join('')}
+function ilInit(){
+ mkTabs('ilm',['No lock','With mutex'],()=>ilM,v=>{ilM=v;ilSeq=[]},ilRender);
+ $('il1').onclick=()=>{ilSeq.push(1);ilRender()};$('il2').onclick=()=>{ilSeq.push(2);ilRender()};
+ $('ilr').onclick=()=>{ilSeq=[];ilRender()};
+ $('ilrand').onclick=()=>{const pool=ILALL.filter(s=>ilM!=='With mutex'||ilOK(s));ilSeq=pool[rint(0,pool.length-1)].slice();ilRender()};
+ $('ilgrid').onclick=e=>{const b=e.target.closest('button[data-i]');if(b&&!b.disabled){ilSeq=ILALL[+b.dataset.i].slice();ilRender()}};
+ ilRender()}
+
+function gSvg(S,o){o=o||{};const W=640,L=10,end=o.end||S.end,cw=(W-2*L)/end;
+ let g=`<svg class='chart' viewBox='0 0 ${W} 62' role='img' aria-label='${o.label||'Gantt chart'}'><rect x='${L}' y='6' width='${W-2*L}' height='34' rx='4' fill='none' class='gl'/>`;
+ S.frames.forEach((f,k)=>{if(k<S.end&&f.run>=0)g+=`<rect x='${L+k*cw}' y='6' width='${cw}' height='34' style='fill:${RC[f.run%8]};stroke:var(--card)'/>`+(cw>=18?`<text x='${L+k*cw+cw/2}' y='28' text-anchor='middle' style='fill:${RF[f.run%8]};font:600 12px sans-serif'>P${f.run+1}</text>`:'')});
+ const step=Math.max(1,Math.ceil(end/16));for(let k=0;k<=end;k+=step)g+=`<text class='t' x='${L+k*cw}' y='58' text-anchor='middle'>${k}</text>`;
+ if(o.mark!==undefined)g+=`<line x1='${L+o.mark*cw}' x2='${L+o.mark*cw}' y1='2' y2='44' stroke-width='3' style='stroke:var(--c5)'/>`;
+ if(o.head!==undefined)g+=`<line x1='${L+o.head*cw}' x2='${L+o.head*cw}' y1='2' y2='44' stroke-width='3' style='stroke:var(--ink)'/>`;
+ return g+'</svg>'}
+let TT={T:0,alt:null};
+const avgW=S=>LP.reduce((s,p,i)=>s+S.fin[i]-p.a-p.b,0)/LP.length;
+const simF=(T,i)=>simTicks(LP.map(p=>({...p})),$('lra').value,Math.max(1,+$('lrq').value||2),{t:T,i});
+function ttBuild(){TT.T=Math.min(TT.T,Math.max(0,LS.end-1));TT.alt=null;$('ttk').max=Math.max(0,LS.end-1);$('ttk').value=TT.T;$('ttres').innerHTML='';ttRender();if(typeof sdRefresh==='function')sdRefresh()}
+function ttRender(){
+ const f=LF[TT.T],cands=(f.run>=0?[f.run]:[]).concat(f.ready.filter(i=>i!==f.run));$('tto').textContent='t = '+TT.T;
+ const opts=cands.map(i=>`<button class='gb${TT.alt&&TT.alt.i===i?' hint':''}' data-i='${i}' ${i===f.run?'disabled':''} aria-label='Run P${i+1} at t=${TT.T}'>${chip(i)}<small>${i===f.run?'original choice':'run this instead'}</small></button>`).join('');
+ let h=`<p style='margin:0 0 8px;font-weight:500'>At t=${TT.T} the ${$('lra').value} scheduler chose ${f.run>=0?'P'+(f.run+1):'nothing (idle)'}. ${cands.length>1?'Pick a different process to run for this tick:':'No other process is ready, so there is nothing to change here.'}</p><div class='chips' style='gap:10px'>${opts}</div><h3 class='sub'>Original timeline</h3>${gSvg(LS,{mark:TT.T,label:'Original timeline'})}`;
+ if(TT.alt){const A=TT.alt.S,d=avgW(A)-avgW(LS);
+  h+=`<h3 class='sub'>Forked timeline: P${TT.alt.i+1} runs at t=${TT.T}</h3>${gSvg(A,{mark:TT.T,label:'Forked timeline'})}<div class='scroll'><table><tr><th>Process</th><th>Waiting, original</th><th>Waiting, forked</th><th>Change</th></tr>`+LP.map((p,i)=>{const o=LS.fin[i]-p.a-p.b,n=A.fin[i]-p.a-p.b,c=n-o;return `<tr><td>P${i+1}</td><td>${o}</td><td>${n}</td><td style='font-weight:600;color:${c<0?'var(--c3)':c>0?'var(--c5)':'inherit'}'>${c>0?'+':''}${c}</td></tr>`}).join('')+`<tr style='font-weight:700'><td>Average</td><td>${avgW(LS).toFixed(2)}</td><td>${avgW(A).toFixed(2)}</td><td style='color:${d<-1e-9?'var(--c3)':d>1e-9?'var(--c5)':'inherit'}'>${d>0?'+':''}${d.toFixed(2)}</td></tr></table></div>`}
+ $('ttview').innerHTML=h}
+function ttPick(i){TT.alt={i,S:simF(TT.T,i)};ttRender()}
+function ttInit(){
+ $('ttk').oninput=e=>{TT.T=+e.target.value;TT.alt=null;ttRender()};
+ $('ttview').onclick=e=>{const b=e.target.closest('button[data-i]');if(b&&!b.disabled)ttPick(+b.dataset.i)};
+ $('ttbest').onclick=()=>{
+  let best=null;const base=avgW(LS);
+  for(let T=0;T<LS.end;T++){const f=LF[T];for(const i of f.ready){if(i===f.run)continue;const w=avgW(simF(T,i));if(!best||w<best.w-1e-9)best={T,i,w}}}
+  if(best&&best.w<base-1e-9){const f=LF[best.T];$('ttres').innerHTML=`<div style='border-left:6px solid var(--c3);padding:10px 14px;margin-top:14px;background:var(--bg);border-radius:8px'><b>Best single change:</b> at t=${best.T}, run P${best.i+1} instead of ${f.run>=0?'P'+(f.run+1):'idle'}. Average waiting drops from ${base.toFixed(2)} to ${best.w.toFixed(2)}.<div class='bar' style='margin:10px 0 0'><button id='ttshow'>Show it</button></div></div>`;$('ttshow').onclick=()=>{TT.T=best.T;$('ttk').value=best.T;ttPick(best.i)}}
+  else $('ttres').innerHTML=`<div style='border-left:6px solid var(--c2);padding:10px 14px;margin-top:14px;background:var(--bg);border-radius:8px'>No single decision change improves the average waiting time of this schedule (${base.toFixed(2)}).</div>`};
+ ttBuild()}
+
+const NOTES=[262,294,330,392,440,523,587,659],NNAME=['C4','D4','E4','G4','A4','C5','D5','E5'];let AC=null,sdTimer=null,sdOn=false,SD=null;
+function sdSims(){const Q=Math.max(1,+$('lrq').value||2),mk=a=>simTicks(LP.map(p=>({...p})),a,Q),b=$('sdb').value;return{A:mk($('sda').value),B:b?mk(b):null}}
+function sdView(head){const S=SD||sdSims(),end=Math.max(S.A.end,S.B?S.B.end:0),nm=id=>$(id).options[$(id).selectedIndex].text;
+ $('sdview').innerHTML=`<p style='margin:0 0 4px'>Left ear: <b>${nm('sda')}</b></p>${gSvg(S.A,{end,head,label:'Left ear schedule'})}`+(S.B?`<p style='margin:8px 0 4px'>Right ear: <b>${nm('sdb')}</b></p>${gSvg(S.B,{end,head,label:'Right ear schedule'})}`:'')}
+function sdRefresh(){if(sdOn)sdStop();$('sdleg').innerHTML=LP.map((p,i)=>`<span style='--k:${RC[i]}'>P${i+1}: ${NNAME[i%8]}</span>`).join('');sdView()}
+function sdStop(){sdOn=false;clearInterval(sdTimer);if(AC){try{AC.close()}catch(e){}AC=null}SD=null;$('sdp').textContent='Play';sdView()}
+function sdStart(){
+ const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx){$('sdview').textContent='This browser cannot play audio.';return}
+ SD=sdSims();AC=new Ctx();if(AC.resume)AC.resume();
+ const dur=+$('sdv').value/1000,t0=AC.currentTime+.2,end=Math.max(SD.A.end,SD.B?SD.B.end:0);
+ const voice=(S,pan)=>S.frames.forEach((f,k)=>{if(k>=S.end)return;const when=t0+k*dur;
+  if(f.run>=0){const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.value=NOTES[f.run%8];
+   g.gain.setValueAtTime(0,when);g.gain.linearRampToValueAtTime(.16,when+.02);g.gain.setValueAtTime(.16,when+dur*.7);g.gain.linearRampToValueAtTime(0,when+dur*.95);
+   o.connect(g);let out=g;if(AC.createStereoPanner){const p=AC.createStereoPanner();p.pan.value=pan;g.connect(p);out=p}out.connect(AC.destination);o.start(when);o.stop(when+dur)}
+  if(k>0&&f.run>=0&&S.frames[k-1].run>=0&&f.run!==S.frames[k-1].run){const o=AC.createOscillator(),g=AC.createGain();o.type='sine';o.frequency.value=1400;g.gain.setValueAtTime(.05,when);g.gain.linearRampToValueAtTime(0,when+.03);o.connect(g);g.connect(AC.destination);o.start(when);o.stop(when+.04)}});
+ voice(SD.A,SD.B?-.8:0);if(SD.B)voice(SD.B,.8);
+ sdOn=true;$('sdp').textContent='Stop';
+ sdTimer=setInterval(()=>{const k=Math.floor((AC.currentTime-t0)/dur);if(k>=end){sdStop();return}sdView(Math.max(0,k))},60)}
+function sdInit(){
+ $('sdp').onclick=()=>{if(sdOn)sdStop();else sdStart()};
+ ['sda','sdb','sdv'].forEach(i=>$(i).onchange=()=>{if(sdOn)sdStop();else sdView()});
+ sdRefresh()}
+const P0=P.map(p=>({...p}));
+function reRender(){renderSched();wChart();cmpChart();ctable();qSweep();radar()}
+$("rnd").onclick=()=>{const n=4+Math.floor(Math.random()*2);P.length=0;let S=0,a=0;
+ for(let i=0;i<n;i++){const b=2+Math.floor(Math.random()*8);a=i===0?0:a+Math.floor(Math.random()*(S-a+1));P.push({id:"P"+(i+1),a,b,p:1+Math.floor(Math.random()*4)});S+=b}reRender()};
+$("rst").onclick=()=>{P.length=0;P0.forEach(p=>P.push({...p}));reRender()};
+$("bel").onclick=()=>{$("refs").value="1 2 3 4 1 2 5 1 2 3 4 5";$("fr").value="3";paging();pfChart();cumChart()};
+["th","tt","tm"].forEach(i=>$(i).oninput=tlb);["bs","pp","cp"].forEach(i=>$(i).onchange=pcRun);$("pcr").onclick=pcRun;
+document.getElementById("av").onchange=bank;bank();diskView();
+paging();pfChart();cmpChart();cumChart();wChart();ctable();xlat();raceRun();qSweep();tlb();pcRun();dineRun();utilChart();radar();mkTabs("mat",["first","best","worst"],()=>ms,v=>ms=v,allocView);allocView();["ps","pe"].forEach(i=>$(i).oninput=psChart);psChart();hier();mcRun();$("mrun").onclick=mcRun;$("mn").onchange=mcRun;mkTabs("dkt",["FCFS","SSTF","SCAN","C-SCAN"],()=>dk,v=>dk=v,diskRun);["dq","dh"].forEach(i=>$(i).oninput=diskRun);diskRun();amChart();ptlChart();lrInit();pgInit();gInit();kInit();labInit();dxInit();shareInit();shellInit();ilInit();ttInit();sdInit();codeInit();navInit();$("dr").onclick=dineRun;
+</script></body></html>
