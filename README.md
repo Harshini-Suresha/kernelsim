@@ -8,7 +8,7 @@ memory allocation, disk scheduling, Amdahl's law and page-table costs.
 ## Live links
 
 - **Website (GitHub Pages):** https://harshini-suresha.github.io/kernelsim/
-- **Streamlit app:** deploy below → `https://<your-app>.streamlit.app` (see instructions)
+- **Streamlit app:** https://kernelsim.streamlit.app/
 - **Source code:** https://github.com/Harshini-Suresha/kernelsim
 - **Notebook in Colab:**
   https://colab.research.google.com/github/Harshini-Suresha/kernelsim/blob/main/KernelSim.ipynb
@@ -67,8 +67,8 @@ git push -u origin main
 1. Push (above) — Streamlit Cloud reads from GitHub.
 2. Go to https://share.streamlit.io → **New app** → pick repo `kernelsim`, branch `main`,
    **Main file path:** `app.py`.
-3. Deploy. You get a URL like `https://kernelsim-xyz.streamlit.app`.
-4. Optionally paste that URL into `index.html` (Links section) and push again.
+3. Deploy. Live at https://kernelsim.streamlit.app/ — already linked from
+   `index.html` (Links section) and the Live links above.
 
 ## Open in Colab
 
